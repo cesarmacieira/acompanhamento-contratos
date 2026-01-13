@@ -103,7 +103,6 @@ def load_data(filename, default_data):
                     rec["timestamp"] = pd.to_datetime(v).strftime("%Y-%m-%d %H:%M:%S")
                 except Exception:
                     rec["timestamp"] = str(v)
-
     return records
 
 def save_data(filename, data):
