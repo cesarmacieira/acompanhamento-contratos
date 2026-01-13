@@ -281,16 +281,14 @@ def registrar_acao(tipo, descricao, usuario='Sistema'):
         'usuario': usuario
     }
     st.session_state.historico.append(registro)
-    save_data(HISTORICO_FILE, st.session_state.historico)  # ALTERADO
+    save_data(HISTORICO_FILE, st.session_state.historico)
 
 # Função de login
 def login_page():
     st.title("🔐 Login - Sistema de Gestão de Contratos")
-
     col1, col2, col3 = st.columns([1, 2, 1])
-
     with col2:
-        st.markdown("### Acesso Restrito - Alta Gestão")
+        st.markdown("### Acesso Restrito")
         
         with st.form("form_login", clear_on_submit=False):
             usuario = st.text_input("Usuário", placeholder="Digite seu usuário")
