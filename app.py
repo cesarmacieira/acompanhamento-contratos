@@ -3,9 +3,66 @@ import pandas as pd
 from datetime import datetime, timedelta
 from buscador_contratos import BuscadorContratos
 import plotly.express as px
-
+from PIL import Image,ImageDraw,ImageFont
 st.set_page_config(page_title="Gestão de Contratos Públicos",layout="wide")
-st.title("📑 Sistema de Gestão de Contratos Públicos")
+#st.image("logo_policromia.png",width=180)
+def header_banner():
+    W,H=2200,140
+    bg=(0,104,157,255)
+    banner=Image.new("RGBA",(W,H),bg)
+    draw=ImageDraw.Draw(banner)
+    try: font=ImageFont.truetype("calibri.ttf", 70)
+    except: font=ImageFont.load_default()
+
+    # LOGO PRINCIPAL À ESQUERDA
+    logo_esquerda="logo_horizontal_branca.png"
+    im_left=Image.open(logo_esquerda).convert("RGBA")
+    h_left=80
+    w_left=int(im_left.size[0]*h_left/im_left.size[1])
+    im_left=im_left.resize((w_left,h_left))
+    left_x=32
+    banner.alpha_composite(im_left,(left_x,(H-h_left)//2))
+
+    # LOGOS À DIREITA (calcular largura total)
+    logos_direita=[
+        "logo_Justica_Federal_5Regiao_branca.png",
+        "logo_Justica_Federal_Ceara_branca.png",
+        "Logo_PNUD_branca.png"
+    ]
+
+    gap=28
+    total_w=0
+    resized=[]
+    for p in logos_direita:
+        im=Image.open(p).convert("RGBA")
+        h=80
+        w=int(im.size[0]*h/im.size[1])
+        resized.append((im.resize((w,h)),w,h))
+        total_w+=w
+    total_w+=gap*(len(resized)-1)
+
+    right_start=W-32-total_w
+    x=right_start
+    for im,w,h in resized:
+        banner.alpha_composite(im,(x,(H-h)//2))
+        x+=w+gap
+
+    # TÍTULO CENTRALIZADO ENTRE LOGOS
+    texto="Sistema de Gestão de Contratos Públicos"
+    bbox=draw.textbbox((0,0),texto,font=font)
+    text_w=bbox[2]-bbox[0]
+
+    area_inicio=left_x+w_left+32
+    area_fim=right_start-32
+    centro_area=(area_inicio+area_fim)//2
+    texto_x=centro_area-(text_w//2)
+
+    draw.text((texto_x,(H-48)//2),texto,fill=(255,255,255,255),font=font)
+
+    return banner
+
+st.image(header_banner(),use_column_width=True)
+#st.title("📑 Sistema de Gestão de Contratos Públicos")
 
 # ======================================================
 # CARREGAMENTO
@@ -93,6 +150,24 @@ with tab_lista:
     df_f = df_f[(df_f["valorParcela"] >= valor_parcela_min) & (df_f["valorParcela"] <= valor_parcela_max)]
     st.dataframe(df_f.sort_values("dataVigenciaFinal"),use_container_width=True,height=600)
     st.caption(f"Contratos exibidos: {len(df_f)}")
+    import io
+    buffer = io.BytesIO()
+
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df_f.sort_values("dataVigenciaFinal").to_excel(
+            writer,
+            index=False,
+            sheet_name="Contratos"
+        )
+
+    buffer.seek(0)
+
+    st.download_button(
+        label="⬇️ Baixar dados em Excel",
+        data=buffer,
+        file_name="contratos.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # ======================================================
 # ABA 2 — ALERTAS
@@ -205,9 +280,10 @@ with tab_analises:
 
     with col2:
         st.markdown("### Valor contratado por ano")
-
-        st.bar_chart(evolucao.set_index("ano")["valor"], y_label="Valor (R$)")
-
+        fig_valor = px.bar(evolucao, x="ano", y="valor", labels={"ano": "Ano", "valor": "Valor contratado (R$)"})
+        fig_valor.update_xaxes(tickangle=0, tickmode="linear", dtick=1)
+        fig_valor.update_yaxes(tickprefix="R$ ", separatethousands=True)
+        st.plotly_chart(fig_valor, use_container_width=True)
         st.caption(f"Média anual: R$ {evolucao['valor'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     
     # Comparação ano a ano
@@ -226,28 +302,26 @@ with tab_analises:
     # ============ ANÁLISE POR STATUS ============
     st.markdown("## 🔄 Análise por Status dos Contratos")
     
-    status_analise = df.groupby("status").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        valor_medio=("valorGlobal", "mean"),
-        valor_maximo=("valorGlobal", "max"),
-        valor_minimo=("valorGlobal", "min")
-    ).reset_index()
+    status_analise = df.groupby("status").agg(quantidade=("numeroContrato", "count"),
+            valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"),
+            valor_maximo=("valorGlobal", "max"), valor_minimo=("valorGlobal", "min")).reset_index()
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("### Quantidade por status")
-        st.bar_chart(status_analise.set_index("status")["quantidade"], y_label="Quantidade")
-    
+        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
+
     with col2:
         st.markdown("### Valor total por status")
-        st.bar_chart(status_analise.set_index("status")["valor_total"], y_label="Valor (R$)")
-    
+        fig_total = px.bar(status_analise,x="status",y="valor_total",labels={"status":"Status","valor_total":"Valor total (R$)"})
+        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,use_container_width=True)
+
     with col3:
         st.markdown("### Ticket médio por status")
-        st.bar_chart(status_analise.set_index("status")["valor_medio"], y_label="Valor médio (R$)")
-    
+        fig_medio = px.bar(status_analise,x="status",y="valor_medio",labels={"status":"Status","valor_medio":"Valor médio (R$)"})
+        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,use_container_width=True)
+        
     st.dataframe(status_analise.style.format({
         "valor_total": "R$ {:,.2f}",
         "valor_medio": "R$ {:,.2f}",
@@ -274,12 +348,13 @@ with tab_analises:
     with col1:
         st.markdown("### Top 10 categorias - Quantidade")
         top_cat_qtd = cat_analise.head(10).sort_values("quantidade")
-        st.bar_chart(top_cat_qtd.set_index("nomeCategoria")["quantidade"], horizontal=True, x_label="Quantidade")
-    
+        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),use_container_width=True)
+
     with col2:
         st.markdown("### Top 10 categorias - Valor")
         top_cat_valor = cat_analise.head(10).sort_values("valor_total")
-        st.bar_chart(top_cat_valor.set_index("nomeCategoria")["valor_total"], horizontal=True, x_label="Valor (R$)")
+        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,use_container_width=True)
+
     
     st.markdown("### Detalhamento completo por categoria")
     st.dataframe(cat_analise.style.format({
@@ -330,14 +405,17 @@ with tab_analises:
         top_forn = forn_analise.head(15).copy()
         top_forn["nome_curto"] = top_forn["nomeRazaoSocialFornecedor"].apply(quebrar_linha)
         top_forn = top_forn.sort_values("valor_total")
-        st.bar_chart(top_forn.set_index("nome_curto")["valor_total"], horizontal=True, x_label="Valor (R$)")
-    
+        fig_forn_valor = px.bar(top_forn,x="valor_total",y="nome_curto",orientation="h",labels={"valor_total":"Valor (R$)","nome_curto":"Fornecedor"})
+        fig_forn_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
+        st.plotly_chart(fig_forn_valor,use_container_width=True)
+
     with col2:
         st.markdown("### Top 15 fornecedores - Quantidade")
         top_forn_qtd = forn_analise.head(15).copy()
         top_forn_qtd["nome_curto"] = top_forn_qtd["nomeRazaoSocialFornecedor"].apply(quebrar_linha)
         top_forn_qtd = top_forn_qtd.sort_values("quantidade")
-        st.bar_chart(top_forn_qtd.set_index("nome_curto")["quantidade"], horizontal=True, x_label="Quantidade")
+        st.plotly_chart(px.bar(top_forn_qtd,x="quantidade",y="nome_curto",orientation="h",labels={"quantidade":"Quantidade","nome_curto":"Fornecedor"}),use_container_width=True)
+
     
     st.markdown("### Concentração de fornecedores")
     c1, c2, c3, c4 = st.columns(4)
@@ -371,11 +449,13 @@ with tab_analises:
     
     with col1:
         st.markdown("### Distribuição por modalidade")
-        st.bar_chart(mod_analise.set_index("nomeModalidadeCompra")["quantidade"], y_label="Quantidade")
-    
+        st.plotly_chart(px.bar(mod_analise,x="nomeModalidadeCompra",y="quantidade",labels={"nomeModalidadeCompra":"Modalidade","quantidade":"Quantidade"}),use_container_width=True)
+
     with col2:
         st.markdown("### Valor por modalidade")
-        st.bar_chart(mod_analise.set_index("nomeModalidadeCompra")["valor_total"], y_label="Valor (R$)")
+        fig_mod = px.bar(mod_analise,x="nomeModalidadeCompra",y="valor_total",labels={"nomeModalidadeCompra":"Modalidade","valor_total":"Valor (R$)"})
+        fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,use_container_width=True)
+
     
     st.dataframe(mod_analise.style.format({
         "valor_total": "R$ {:,.2f}",
@@ -397,11 +477,13 @@ with tab_analises:
     
     with col1:
         st.markdown("### Quantidade por tipo")
-        st.bar_chart(tipo_analise.set_index("nomeTipo")["quantidade"], y_label="Quantidade")
-    
+        st.plotly_chart(px.bar(tipo_analise,x="nomeTipo",y="quantidade",labels={"nomeTipo":"Tipo","quantidade":"Quantidade"}),use_container_width=True)
+
     with col2:
         st.markdown("### Valor por tipo")
-        st.bar_chart(tipo_analise.set_index("nomeTipo")["valor_total"], y_label="Valor (R$)")
+        fig_tipo = px.bar(tipo_analise,x="nomeTipo",y="valor_total",labels={"nomeTipo":"Tipo","valor_total":"Valor (R$)"})
+        fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,use_container_width=True)
+
     
     st.dataframe(tipo_analise.style.format({
         "valor_total": "R$ {:,.2f}",
@@ -438,14 +520,16 @@ with tab_analises:
         top_unid = unid_analise.head(10).copy()
         top_unid["nome_curto"] = top_unid["nomeUnidadeRealizadoraCompra"].apply(quebrar_linha)
         top_unid = top_unid.sort_values("quantidade")
-        st.bar_chart(top_unid.set_index("nome_curto")["quantidade"], horizontal=True, x_label="Quantidade")
-    
+        st.plotly_chart(px.bar(top_unid,x="quantidade",y="nome_curto",orientation="h",labels={"quantidade":"Quantidade","nome_curto":"Unidade"}),use_container_width=True)
+
     with col2:
         st.markdown("### Top 10 unidades - Valor")
         top_unid_valor = unid_analise.head(10).copy()
         top_unid_valor["nome_curto"] = top_unid_valor["nomeUnidadeRealizadoraCompra"].apply(quebrar_linha)
         top_unid_valor = top_unid_valor.sort_values("valor_total")
-        st.bar_chart(top_unid_valor.set_index("nome_curto")["valor_total"], horizontal=True, x_label="Valor (R$)")
+        fig_unid = px.bar(top_unid_valor,x="valor_total",y="nome_curto",orientation="h",labels={"valor_total":"Valor (R$)","nome_curto":"Unidade"})
+        fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,use_container_width=True)
+
     
     st.dataframe(unid_analise.head(15).style.format({
         "valor_total": "R$ {:,.2f}"

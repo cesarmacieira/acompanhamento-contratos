@@ -185,3 +185,4 @@ class BuscadorContratos:
             worksheet.freeze_panes = 'A2'
         
         return nome_arquivo
+    
