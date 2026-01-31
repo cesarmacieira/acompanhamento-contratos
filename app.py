@@ -398,10 +398,8 @@ with tab2:
 
 # ==================== ABA 3: ANÁLISES ====================
 with tab3:
-    st.subheader("Análises Gerenciais Completas")
+    st.subheader("Análises dos contratos")
 
-    # ============ VISÃO GERAL ============
-    st.markdown("## 📊 Visão Geral Consolidada")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Total de contratos", len(df))
     c2.metric("Contratos vigentes", len(df[df["status"] == "Vigente"]))
@@ -719,7 +717,7 @@ with tab3:
 
 # ==================== ABA 4: VISÃO GERAL & FILTROS ====================
 with tab4:
-    st.header("Filtros e Visão Geral")
+    st.header("Análise Financeira")
     
     # Filtros em colunas
     col1, col2, col3 = st.columns(3)
@@ -895,13 +893,11 @@ with tab4:
     
     st.dataframe(resumo_display, use_container_width=True)
 
-
 # ==================== ABA 5: ANÁLISE POR GESTORES ====================
 with tab5:
-    st.header("👥 Análise por Gestores")
+    st.header("Perfil dos Gestores")
     
     # FILTROS EDITÁVEIS NESTA ABA
-    st.subheader("🔍 Filtros")
     col1_f, col2_f, col3_f = st.columns(3)
     
     with col1_f:
@@ -1122,13 +1118,11 @@ with tab5:
         
         st.dataframe(gestores_display, use_container_width=True, height=400)
 
-
 # ==================== ABA 6: ANÁLISE POR CENTRO DE CUSTOS ====================
 with tab6:
-    st.header("🏢 Análise por Centro de Custos")
+    st.header("Análise por Centro de Custos")
     
     # FILTROS EDITÁVEIS NESTA ABA
-    st.subheader("🔍 Filtros")
     col1_f, col2_f, col3_f = st.columns(3)
     
     with col1_f:
@@ -1272,13 +1266,12 @@ with tab6:
 
 # ==================== ABA 7: EMPENHOS DETALHADOS ====================
 with tab7:
-    st.header("💳 Empenhos Detalhados")
+    st.header("Empenhos Detalhados")
     
     if len(df_empenhos) == 0:
         st.warning("Dados de empenhos não disponíveis.")
     else:
         # FILTROS EDITÁVEIS
-        st.subheader("🔍 Filtros")
         col1_f, col2_f, col3_f = st.columns(3)
         
         with col1_f:
@@ -1461,13 +1454,12 @@ with tab7:
 
 # ==================== ABA 8: PRÉ-EMPENHOS ====================
 with tab8:
-    st.header("📋 Pré-Empenhos")
+    st.header("Pré-Empenhos")
     
     if len(df_pre_empenhos) == 0:
         st.warning("Dados de pré-empenhos não disponíveis.")
     else:
         # Filtros
-        st.subheader("🔍 Filtros")
         col1_f, col2_f = st.columns(2)
         
         with col1_f:
@@ -1608,13 +1600,12 @@ with tab8:
 
 # ==================== ABA 9: RESTOS A PAGAR ====================
 with tab9:
-    st.header("📈 Restos a Pagar")
+    st.header("Restos a Pagar")
     
     if len(df_rp) == 0:
         st.warning("Dados de restos a pagar não disponíveis.")
     else:
         # Filtros
-        st.subheader("🔍 Filtros")
         col1_f, col2_f = st.columns(2)
         
         with col1_f:
