@@ -69,11 +69,8 @@ def header_banner():
     area_fim = right_start - 32
     centro_area = (area_inicio + area_fim) // 2
     texto_x = centro_area - (text_w // 2)
-
-    # 👉 compensação do offset vertical real da fonte
     texto_y = (H - text_h) // 2 - bbox[1]
     draw.text((texto_x, texto_y),texto,fill=(255,255,255,255),font=font)
-
     return banner
 
 st.image(header_banner(),use_container_width=True)
@@ -90,9 +87,6 @@ def formatar_percentual(valor):
     if pd.isna(valor) or np.isinf(valor):
         return "0,0%"
     return f"{valor:.1f}%".replace(".", ",")
-
-# Configuração da página
-#st.set_page_config(page_title="Portal Financeiro TRF5", page_icon="💰", layout="wide", initial_sidebar_state="collapsed")
 
 # CSS customizado
 st.markdown("""
@@ -250,6 +244,7 @@ df = df.dropna(subset=["numeroContrato","dataVigenciaFinal"])
 if df.empty:
     st.warning("Nenhum contrato encontrado.")
     st.stop()
+    
 df["dataVigenciaInicial"] = pd.to_datetime(df["dataVigenciaInicial"], errors="coerce")
 df["dataVigenciaFinal"] = pd.to_datetime(df["dataVigenciaFinal"], errors="coerce")
 df["valorGlobal"] = pd.to_numeric(df["valorGlobal"], errors="coerce").fillna(0)
