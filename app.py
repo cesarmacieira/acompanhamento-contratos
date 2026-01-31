@@ -9,6 +9,7 @@ from datetime import datetime
 from PIL import Image,ImageDraw,ImageFont
 from buscador_contratos import BuscadorContratos
 import io
+import os
 
 st.set_page_config(page_title="Gestão de Contratos Públicos",layout="wide")
 #st.image("logo_policromia.png",width=180)
@@ -17,11 +18,18 @@ def header_banner():
     bg=(0,104,157,255)
     banner=Image.new("RGBA",(W,H),bg)
     draw=ImageDraw.Draw(banner)
-    try: font=ImageFont.truetype("calibri.ttf", 50)
-    except: font=ImageFont.load_default()
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    FONT_PATH = os.path.join(BASE_DIR, "fonts/DejaVuSans-Bold.ttf")
+
+    try:
+        font = ImageFont.truetype(FONT_PATH, 45)
+    except Exception as e:
+        st.error(f"Erro ao carregar fonte: {e}")
+        font = ImageFont.load_default()
+
 
     # LOGO PRINCIPAL À ESQUERDA
-    logo_esquerda="logo_horizontal_branca.png"
+    logo_esquerda="logos/logo_horizontal_branca.png"
     im_left=Image.open(logo_esquerda).convert("RGBA")
     h_left=80
     w_left=int(im_left.size[0]*h_left/im_left.size[1])
@@ -30,12 +38,9 @@ def header_banner():
     banner.alpha_composite(im_left,(left_x,(H-h_left)//2))
 
     # LOGOS À DIREITA (calcular largura total)
-    logos_direita=[
-        "logo_Justica_Federal_5Regiao_branca.png",
-        "logo_Justica_Federal_Ceara_branca.png",
-        "Logo_PNUD_branca.png"
-    ]
-
+    logos_direita=["logos/logo_Justica_Federal_5Regiao_branca.png", 
+                   #"logos/logo_Justica_Federal_Ceara_branca.png", 
+                   "logos/Logo_PNUD_branca.png"]
     gap=28
     total_w=0
     resized=[]
@@ -55,19 +60,23 @@ def header_banner():
 
     # TÍTULO CENTRALIZADO ENTRE LOGOS
     texto="Painel Executivo de Contratos, Orçamento e Financeiro"
-    bbox=draw.textbbox((0,0),texto,font=font)
-    text_w=bbox[2]-bbox[0]
+    bbox = draw.textbbox((0, 0), texto, font=font)
 
-    area_inicio=left_x+w_left+32
-    area_fim=right_start-32
-    centro_area=(area_inicio+area_fim)//2
-    texto_x=centro_area-(text_w//2)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
 
-    draw.text((texto_x,(H-48)//2),texto,fill=(255,255,255,255),font=font)
+    area_inicio = left_x + w_left + 32
+    area_fim = right_start - 32
+    centro_area = (area_inicio + area_fim) // 2
+    texto_x = centro_area - (text_w // 2)
+
+    # 👉 compensação do offset vertical real da fonte
+    texto_y = (H - text_h) // 2 - bbox[1]
+    draw.text((texto_x, texto_y),texto,fill=(255,255,255,255),font=font)
 
     return banner
 
-st.image(header_banner(),use_container_width =True)
+st.image(header_banner(),use_container_width=True)
 
 # Função para formatação brasileira
 def formatar_real(valor):
@@ -135,10 +144,10 @@ st.markdown("""
 # Função para carregar dados do resumo
 @st.cache_data
 def load_resumo_data():
-    try:
-        df = pd.read_parquet('Dados_resumo_centro_de_custos.parquet')
-    except:
-        df = pd.read_excel('Dados resumo centro de custos.xlsx')
+    # try:
+    #     df = pd.read_parquet('dados/Dados resumo centro de custos.parquet')
+    # except:
+    df = pd.read_excel('dados/Dados resumo centro de custos.xlsx')
     
     # Converter Ano para string
     df['Ano'] = df['Ano'].astype(str)
@@ -168,9 +177,9 @@ def load_resumo_data():
 @st.cache_data
 def load_empenhos_data():
     try:
-        df = pd.read_parquet('Dados empenhos.parquet')
+        df = pd.read_parquet('dados/Dados empenhos.parquet')
     except:
-        df = pd.read_excel('Dados empenhos.xlsx')
+        df = pd.read_excel('dados/Dados empenhos.xlsx')
     
     # Converter colunas financeiras
     financial_cols = ['Valor Empenhado', 'Valor Pago', 'R$ a pagar']
@@ -184,9 +193,9 @@ def load_empenhos_data():
 @st.cache_data
 def load_pre_empenhos_data():
     try:
-        df = pd.read_parquet('Dados_pré_empenhos.parquet')
+        df = pd.read_parquet('dados/Dados pré empenhos.parquet')
     except:
-        df = pd.read_excel('Dados pré empenhos.xlsx')
+        df = pd.read_excel('dados/Dados pré empenhos.xlsx')
     
     # Converter Ano para string
     if 'Ano' in df.columns:
@@ -202,9 +211,9 @@ def load_pre_empenhos_data():
 @st.cache_data
 def load_restos_pagar_data():
     try:
-        df = pd.read_parquet('Dados_restos_a_pagar.parquet')
+        df = pd.read_parquet('dados/Dados restos apagar.parquet')
     except:
-        df = pd.read_excel('Dados restos a pagar.xlsx')
+        df = pd.read_excel('dados/Dados restos a pagar.xlsx')
     
     # Converter colunas financeiras
     financial_cols = ['Valor RP Processados Inscritos', 'RP Inscritos', 'RP Cancelados', 
@@ -219,9 +228,9 @@ def load_restos_pagar_data():
 @st.cache_data
 def load_portal_data():
     try:
-        df = pd.read_parquet('Dados portal TRF5.parquet')
+        df = pd.read_parquet('dados/Dados portal TRF5.parquet')
     except:
-        df = pd.read_excel('Dados portal TRF5.xlsx')
+        df = pd.read_excel('dados/Dados portal TRF5.xlsx')
     
     # Converter Ano para string
     if 'Ano' in df.columns:
