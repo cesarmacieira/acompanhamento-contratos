@@ -339,7 +339,7 @@ with tab1:
     df_f = df_f[(df_f["valorParcela"] >= valor_parcela_min) & (df_f["valorParcela"] <= valor_parcela_max)]
     if numero_contrato:
         df_f = df_f[df_f["numeroContrato"].isin(numero_contrato)]
-    st.dataframe(df_f.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+    st.dataframe(df_f.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     st.caption(f"Contratos exibidos: {len(df_f)}")
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
@@ -391,7 +391,7 @@ with tab2:
         vigentes = vigentes[vigentes["numeroContrato"].isin(numero_contrato)]
     if fornecedor:
         vigentes = vigentes[vigentes["nomeRazaoSocialFornecedor"].isin(fornecedor)] 
-    st.dataframe(vigentes.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+    st.dataframe(vigentes.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     st.divider()
     with st.container():
         st.markdown("### ⏰ Vencendo em até 30 dias")
@@ -407,7 +407,7 @@ with tab2:
             v30 = v30[v30["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
             v30 = v30[v30["nomeRazaoSocialFornecedor"].isin(fornecedor)]
-        st.dataframe(v30.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+        st.dataframe(v30.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### ⏳ Vencendo entre 31 e 60 dias")
         c17, c18, c19, c20 = st.columns(4)
@@ -422,7 +422,7 @@ with tab2:
             v60 = v60[v60["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
             v60 = v60[v60["nomeRazaoSocialFornecedor"].isin(fornecedor)]
-        st.dataframe(v60.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+        st.dataframe(v60.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### ⏳ Vencendo entre 61 e 90 dias")
         c21, c22, c23, c24 = st.columns(4)
@@ -437,7 +437,7 @@ with tab2:
             v90 = v90[v90["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
             v90 = v90[v90["nomeRazaoSocialFornecedor"].isin(fornecedor)]
-        st.dataframe(v90.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+        st.dataframe(v90.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### 🔴 Contratos vencidos")
         c25, c26, c27, c28 = st.columns(4)
@@ -452,7 +452,7 @@ with tab2:
             vencidos = vencidos[vencidos["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
             vencidos = vencidos[vencidos["nomeRazaoSocialFornecedor"].isin(fornecedor)]        
-        st.dataframe(vencidos.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+        st.dataframe(vencidos.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True)
     
     # ============ ANÁLISE POR CATEGORIA - CONTRATOS VENCENDO ============
     st.divider()
@@ -490,7 +490,7 @@ with tab2:
             fig_cat_qtd.add_trace(go.Bar(x=top_cat_qtd['Quantidade'], y=top_cat_qtd['Categoria'], orientation='h',
                 marker_color='#dc3545', text=top_cat_qtd['Quantidade'], textposition='auto'))
             fig_cat_qtd.update_layout(xaxis_title="Quantidade de Contratos", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_cat_qtd, width='stretch')
+            st.plotly_chart(fig_cat_qtd, use_container_width=True)
         
         with col2:
             st.markdown("### Valor Total")
@@ -499,14 +499,14 @@ with tab2:
             fig_cat_valor.add_trace(go.Bar(x=top_cat_valor['Valor Total'], y=top_cat_valor['Categoria'], orientation='h',
                 marker_color='#ffc107', text=top_cat_valor['Valor Total'].apply(lambda x: formatar_real(x)), textposition='auto'))
             fig_cat_valor.update_layout(xaxis_title="Valor Total (R$)", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_cat_valor, width='stretch')
+            st.plotly_chart(fig_cat_valor, use_container_width=True)
         
         # Tabela com detalhes
         st.markdown("### 📋 Detalhamento por Categoria")
         cat_display = cat_risco.copy()
         cat_display['Valor Total'] = cat_display['Valor Total'].apply(formatar_real)
         cat_display['Data Mais Próxima'] = pd.to_datetime(cat_display['Data Mais Próxima']).dt.strftime('%d/%m/%Y')
-        st.dataframe(cat_display, width='stretch')
+        st.dataframe(cat_display, use_container_width=True)
     else:
         st.success("✅ Não há contratos em risco de vencimento nos próximos 90 dias!")
     
@@ -540,7 +540,7 @@ with tab3:
         st.markdown("### Contratos por ano")
         fig=px.bar(evolucao,x="ano",y="contratos",labels={"ano":"Ano","contratos":"Quantidade"})
         fig.update_xaxes(tickangle=0,tickmode="linear",dtick=1)
-        st.plotly_chart(fig,width='stretch')
+        st.plotly_chart(fig,use_container_width=True)
         st.caption(f"Média anual: {evolucao['contratos'].mean():.0f} contratos")
 
     with col2:
@@ -548,7 +548,7 @@ with tab3:
         fig_valor = px.bar(evolucao, x="ano", y="valor", labels={"ano": "Ano", "valor": "Valor contratado (R$)"})
         fig_valor.update_xaxes(tickangle=0, tickmode="linear", dtick=1)
         fig_valor.update_yaxes(tickprefix="R$ ", separatethousands=True)
-        st.plotly_chart(fig_valor, width='stretch')
+        st.plotly_chart(fig_valor, use_container_width=True)
         st.caption(f"Média anual: R$ {evolucao['valor'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     
     # Comparação ano a ano
@@ -567,7 +567,7 @@ with tab3:
             "Variação Contratos %": "{:.1f}%",
             "Variação Valor %": "{:.1f}%",
             "Ticket Médio": "R$ {:,.2f}"
-        }), width='stretch')
+        }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR STATUS ============
@@ -581,17 +581,17 @@ with tab3:
     
     with col1:
         st.markdown("### Quantidade por status")
-        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),width='stretch')
+        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
 
     with col2:
         st.markdown("### Valor total por status")
         fig_total = px.bar(status_analise,x="status",y="valor_total",labels={"status":"Status","valor_total":"Valor total (R$)"})
-        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,width='stretch')
+        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,use_container_width=True)
 
     with col3:
         st.markdown("### Ticket médio por status")
         fig_medio = px.bar(status_analise,x="status",y="valor_medio",labels={"status":"Status","valor_medio":"Valor médio (R$)"})
-        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,width='stretch')
+        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,use_container_width=True)
         
     with st.expander("📋 Ver Tabela Detalhada - Análise por Status", expanded=False):
         st.dataframe(status_analise.style.format({
@@ -599,7 +599,7 @@ with tab3:
             "valor_medio": "R$ {:,.2f}",
             "valor_maximo": "R$ {:,.2f}",
             "valor_minimo": "R$ {:,.2f}"
-        }), width='stretch')
+        }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR CATEGORIA ============
@@ -620,12 +620,12 @@ with tab3:
     with col1:
         st.markdown("### Top 10 categorias - Quantidade")
         top_cat_qtd = cat_analise.head(10).sort_values("quantidade")
-        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),width='stretch')
+        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),use_container_width=True)
 
     with col2:
         st.markdown("### Top 10 categorias - Valor")
         top_cat_valor = cat_analise.head(10).sort_values("valor_total")
-        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,width='stretch')
+        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,use_container_width=True)
 
     
     st.markdown("### Detalhamento Completo por Categoria")
@@ -638,7 +638,7 @@ with tab3:
             "Valor Total": "R$ {:,.2f}",
             "Valor Médio": "R$ {:,.2f}",
             "% Vigentes": "{:.1f}%"
-        }), width='stretch')
+        }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR FORNECEDOR ============
@@ -685,14 +685,14 @@ with tab3:
         top_forn = top_forn.sort_values("Valor Total")
         fig_forn_valor = px.bar(top_forn,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Fornecedor"})
         fig_forn_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
-        st.plotly_chart(fig_forn_valor,width='stretch')
+        st.plotly_chart(fig_forn_valor,use_container_width=True)
 
     with col2:
         st.markdown("### Top 15 Fornecedores - Quantidade")
         top_forn_qtd = forn_analise.head(15).copy()
         top_forn_qtd["nome_curto"] = top_forn_qtd["Fornecedor"].apply(quebrar_linha)
         top_forn_qtd = top_forn_qtd.sort_values("Quantidade")
-        st.plotly_chart(px.bar(top_forn_qtd,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Fornecedor"}),width='stretch')
+        st.plotly_chart(px.bar(top_forn_qtd,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Fornecedor"}),use_container_width=True)
     
     # Detalhamento completo por fornecedor
     st.markdown("### Detalhamento Completo por Fornecedor")
@@ -701,7 +701,7 @@ with tab3:
             "Valor Total": "R$ {:,.2f}",
             "Valor Médio": "R$ {:,.2f}",
             "Participação %": "{:.2f}%"
-        }), width='stretch')
+        }), use_container_width=True)
     
     st.divider()
 
@@ -723,19 +723,19 @@ with tab3:
     
     with col1:
         st.markdown("### Distribuição por Modalidade")
-        st.plotly_chart(px.bar(mod_analise,x="Modalidade",y="Quantidade",labels={"Modalidade":"Modalidade","Quantidade":"Quantidade"}),width='stretch')
+        st.plotly_chart(px.bar(mod_analise,x="Modalidade",y="Quantidade",labels={"Modalidade":"Modalidade","Quantidade":"Quantidade"}),use_container_width=True)
 
     with col2:
         st.markdown("### Valor por Modalidade")
         fig_mod = px.bar(mod_analise,x="Modalidade",y="Valor Total",labels={"Modalidade":"Modalidade","Valor Total":"Valor (R$)"})
-        fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,width='stretch')
+        fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,use_container_width=True)
 
     
     st.dataframe(mod_analise.reset_index(drop=True).style.format({
         "Valor Total": "R$ {:,.2f}",
         "Valor Médio": "R$ {:,.2f}",
         "Participação %": "{:.2f}%"
-    }), width='stretch')
+    }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR TIPO ============
@@ -754,18 +754,18 @@ with tab3:
     
     with col1:
         st.markdown("### Quantidade por Tipo")
-        st.plotly_chart(px.bar(tipo_analise,x="Tipo",y="Quantidade",labels={"Tipo":"Tipo","Quantidade":"Quantidade"}),width='stretch')
+        st.plotly_chart(px.bar(tipo_analise,x="Tipo",y="Quantidade",labels={"Tipo":"Tipo","Quantidade":"Quantidade"}),use_container_width=True)
 
     with col2:
         st.markdown("### Valor por Tipo")
         fig_tipo = px.bar(tipo_analise,x="Tipo",y="Valor Total",labels={"Tipo":"Tipo","Valor Total":"Valor (R$)"})
-        fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,width='stretch')
+        fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,use_container_width=True)
 
     
     st.dataframe(tipo_analise.style.format({
         "Valor Total": "R$ {:,.2f}",
         "Valor Médio": "R$ {:,.2f}"
-    }), width='stretch')
+    }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE CRUZADA ============
@@ -778,7 +778,7 @@ with tab3:
     for col in cat_status_display.columns:
         cat_status_display[col] = cat_status_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     with st.expander("📋 Ver Tabela - Categoria × Status", expanded=False):
-        st.dataframe(cat_status_display, width='stretch')
+        st.dataframe(cat_status_display, use_container_width=True)
     
     st.markdown("### Modalidade × Ano")
     mod_ano = pd.crosstab(df["nomeModalidadeCompra"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
@@ -787,7 +787,7 @@ with tab3:
     for col in mod_ano_display.columns:
         mod_ano_display[col] = mod_ano_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     with st.expander("📋 Ver Tabela - Modalidade × Ano", expanded=False):
-        st.dataframe(mod_ano_display, width='stretch')
+        st.dataframe(mod_ano_display, use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE DE UNIDADES ============
@@ -810,7 +810,7 @@ with tab3:
         top_unid = unid_analise.head(10).copy()
         top_unid["nome_curto"] = top_unid["Unidade"].apply(quebrar_linha)
         top_unid = top_unid.sort_values("Quantidade")
-        st.plotly_chart(px.bar(top_unid,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Unidade"}),width='stretch')
+        st.plotly_chart(px.bar(top_unid,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Unidade"}),use_container_width=True)
 
     with col2:
         st.markdown("### Top 10 Unidades - Valor")
@@ -818,13 +818,13 @@ with tab3:
         top_unid_valor["nome_curto"] = top_unid_valor["Unidade"].apply(quebrar_linha)
         top_unid_valor = top_unid_valor.sort_values("Valor Total")
         fig_unid = px.bar(top_unid_valor,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Unidade"})
-        fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,width='stretch')
+        fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,use_container_width=True)
 
     
     with st.expander("📋 Ver Tabela Detalhada - Top 15 Unidades", expanded=False):
         st.dataframe(unid_analise.head(15).style.format({
             "Valor Total": "R$ {:,.2f}"
-        }), width='stretch')
+        }), use_container_width=True)
     st.divider()
 
 # ==================== ABA 4: VISÃO GERAL & FILTROS ====================
@@ -951,7 +951,7 @@ with tab4:
                 height=400
             )
             
-            st.plotly_chart(fig_evolucao, width='stretch')
+            st.plotly_chart(fig_evolucao, use_container_width=True)
         
         with col2:
             # Gráfico comparativo Empenhado vs Pago
@@ -1001,7 +1001,7 @@ with tab4:
                                     annotation_text=f"Total Empenhado: {formatar_real(valor_empenhado)}",
                                     annotation_position="top right")
                 
-                st.plotly_chart(fig_emp_pago, width='stretch')
+                st.plotly_chart(fig_emp_pago, use_container_width=True)
                 
                 # Adicionar métricas complementares
                 col_a, col_b = st.columns(2)
@@ -1037,7 +1037,7 @@ with tab4:
             resumo_display[col] = resumo_display[col].apply(formatar_real)
         resumo_display['% Execução'] = resumo_display['% Execução'].apply(formatar_percentual)
         
-        st.dataframe(resumo_display, width='stretch')
+        st.dataframe(resumo_display, use_container_width=True)
     with subtab2_fin:
         st.header("Perfil dos Gestores")
         
@@ -1127,7 +1127,7 @@ with tab4:
                 yaxis={'categoryorder':'total ascending'}
             )
             
-            st.plotly_chart(fig_top_gestores, width='stretch')
+            st.plotly_chart(fig_top_gestores, use_container_width=True)
             
             # Gráficos comparativos
             col1, col2 = st.columns(2)
@@ -1161,7 +1161,7 @@ with tab4:
                                 yaxis={'categoryorder':'total ascending'}
                             )
                             
-                            st.plotly_chart(fig_exec, width='stretch')
+                            st.plotly_chart(fig_exec, use_container_width=True)
                         else:
                             st.info("Sem dados de execução para exibir. Verifique se há gestores com limites e empenhos definidos.")
                     else:
@@ -1198,7 +1198,7 @@ with tab4:
                     yaxis={'categoryorder':'total ascending'}
                 )
                 
-                st.plotly_chart(fig_emp_pago, width='stretch')
+                st.plotly_chart(fig_emp_pago, use_container_width=True)
             
             # Mais análises
             st.markdown("---")
@@ -1221,7 +1221,7 @@ with tab4:
                         )])
                         
                         fig_limites.update_layout(height=400)
-                        st.plotly_chart(fig_limites, width='stretch')
+                        st.plotly_chart(fig_limites, use_container_width=True)
                     else:
                         st.info("Sem dados de limites para exibir. Selecione filtros adequados.")
                 else:
@@ -1253,7 +1253,7 @@ with tab4:
                     yaxis={'categoryorder':'total ascending'}
                 )
                 
-                st.plotly_chart(fig_taxa, width='stretch')
+                st.plotly_chart(fig_taxa, use_container_width=True)
             
             # Tabela detalhada COM COLUNA ANO
             st.markdown("---")
@@ -1280,7 +1280,7 @@ with tab4:
                 gestores_display[col] = gestores_display[col].apply(formatar_real)
             gestores_display['% Execução'] = gestores_display['% Execução'].apply(formatar_percentual)
             
-            st.dataframe(gestores_display, width='stretch', height=400)
+            st.dataframe(gestores_display, use_container_width=True, height=400)
     with subtab3_fin:
         st.header("Análise por Centro de Custos")
         
@@ -1355,7 +1355,7 @@ with tab4:
                 yaxis={'categoryorder':'total ascending'}
             )
             
-            st.plotly_chart(fig_top_centros, width='stretch')
+            st.plotly_chart(fig_top_centros, use_container_width=True)
             
             # Análises comparativas
             st.subheader("📊 Análises Comparativas")
@@ -1384,7 +1384,7 @@ with tab4:
                     yaxis={'categoryorder':'total ascending'}
                 )
                 
-                st.plotly_chart(fig_a_pagar, width='stretch')
+                st.plotly_chart(fig_a_pagar, use_container_width=True)
             
             with col2:
                 # Distribuição de limites - VALIDADO
@@ -1403,7 +1403,7 @@ with tab4:
                             height=500
                         )
                         
-                        st.plotly_chart(fig_limites, width='stretch')
+                        st.plotly_chart(fig_limites, use_container_width=True)
                     else:
                         st.info("Sem dados de limites para exibir. Selecione filtros adequados.")
                 else:
@@ -1430,7 +1430,7 @@ with tab4:
             centros_display.columns = ['Centro de Custo', 'Limite', 'Empenhado', 'Pago', 
                                     'Pré-Empenhado', 'Disponível', 'A Pagar', '% Execução']
             
-            st.dataframe(centros_display, width='stretch')
+            st.dataframe(centros_display, use_container_width=True)
 
 # ==================== ABA 7: DADOS ORÇAMENTÁRIOS ====================
 with tab5:
@@ -1522,7 +1522,7 @@ with tab5:
                             height=500,
                             yaxis={'categoryorder':'total ascending'}
                         )
-                        st.plotly_chart(fig_fav, width='stretch')
+                        st.plotly_chart(fig_fav, use_container_width=True)
             
             with col2:
                 if 'Grupo' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns and len(df_empenhos_filtered) > 0:
@@ -1543,7 +1543,7 @@ with tab5:
                             height=500,
                             yaxis={'categoryorder':'total ascending'}
                         )
-                        st.plotly_chart(fig_grupo, width='stretch')
+                        st.plotly_chart(fig_grupo, use_container_width=True)
             
             # Adicionar gráfico de evolução anual se tiver coluna Ano
             if 'Ano' in df_empenhos_filtered.columns and len(df_empenhos_filtered) > 0:
@@ -1570,7 +1570,7 @@ with tab5:
                             yaxis_title="Quantidade",
                             height=400
                         )
-                        st.plotly_chart(fig_ano_qtd, width='stretch')
+                        st.plotly_chart(fig_ano_qtd, use_container_width=True)
                 
                 with col2:
                     # Valor por ano
@@ -1591,7 +1591,7 @@ with tab5:
                                 yaxis_title="Valor (R$)",
                                 height=400
                             )
-                            st.plotly_chart(fig_ano_valor, width='stretch')
+                            st.plotly_chart(fig_ano_valor, use_container_width=True)
             
             # Tabela
             st.markdown("---")
@@ -1630,7 +1630,7 @@ with tab5:
                     if col in df_emp_final.columns:
                         df_emp_final[col] = df_emp_final[col].apply(lambda x: formatar_real(x) if pd.notna(x) else '-')
                 
-                st.dataframe(df_emp_final, width='stretch', height=500)
+                st.dataframe(df_emp_final, use_container_width=True, height=500)
                 st.info(f"📊 Exibindo {len(df_emp_final):,} de {total_registros:,} registros")
                 
                 # Botão de download
@@ -1712,7 +1712,7 @@ with tab5:
                             height=500,
                             yaxis={'categoryorder':'total ascending'}
                         )
-                        st.plotly_chart(fig_fav_pre, width='stretch')
+                        st.plotly_chart(fig_fav_pre, use_container_width=True)
             
             with col2:
                 if 'Ano' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns and len(df_pre_filtered) > 0:
@@ -1732,7 +1732,7 @@ with tab5:
                             yaxis_title="Valor (R$)",
                             height=500
                         )
-                        st.plotly_chart(fig_ano_pre, width='stretch')
+                        st.plotly_chart(fig_ano_pre, use_container_width=True)
             
             # Tabela
             st.markdown("---")
@@ -1763,7 +1763,7 @@ with tab5:
                         lambda x: formatar_real(x) if pd.notna(x) else '-'
                     )
                 
-                st.dataframe(df_pre_final, width='stretch', height=400)
+                st.dataframe(df_pre_final, use_container_width=True, height=400)
                 st.info(f"📊 Exibindo {len(df_pre_final):,} de {len(df_pre_display):,} registros")
                 
                 # Botão de download
@@ -1776,7 +1776,7 @@ with tab5:
                     key="download_pre_empenhos"
                 )
             else:
-                st.dataframe(df_pre_display.head(100), width='stretch', height=400)
+                st.dataframe(df_pre_display.head(100), use_container_width=True, height=400)
                 st.info(f"📊 Exibindo primeiros 100 registros")
     
     # ==================== SUB-ABA 3: RESTOS A PAGAR ====================
@@ -1849,7 +1849,7 @@ with tab5:
                             height=500,
                             yaxis={'categoryorder':'total ascending'}
                         )
-                        st.plotly_chart(fig_fav_rp, width='stretch')
+                        st.plotly_chart(fig_fav_rp, use_container_width=True)
             
             with col2:
                 # Gráfico de pizza com distribuição
@@ -1872,7 +1872,7 @@ with tab5:
                             hole=0.4
                         )])
                         fig_dist_rp.update_layout(height=500)
-                        st.plotly_chart(fig_dist_rp, width='stretch')
+                        st.plotly_chart(fig_dist_rp, use_container_width=True)
             
             # Tabela
             st.markdown("---")
@@ -1904,7 +1904,7 @@ with tab5:
                             lambda x: formatar_real(x) if pd.notna(x) else '-'
                         )
                 
-                st.dataframe(df_rp_final, width='stretch', height=400)
+                st.dataframe(df_rp_final, use_container_width=True, height=400)
                 st.info(f"📊 Exibindo {len(df_rp_final):,} de {len(df_rp_display):,} registros")
                 
                 # Botão de download
@@ -1917,7 +1917,7 @@ with tab5:
                     key="download_restos_pagar"
                 )
             else:
-                st.dataframe(df_rp_display.head(100), width='stretch', height=400)
+                st.dataframe(df_rp_display.head(100), use_container_width=True, height=400)
                 st.info(f"📊 Exibindo primeiros 100 registros")
 
 
@@ -2012,7 +2012,7 @@ with tab6:
                 hole=0.4
             )])
             fig_dist.update_layout(title="Distribuição de Contratos", height=400)
-            st.plotly_chart(fig_dist, width='stretch')
+            st.plotly_chart(fig_dist, use_container_width=True)
         
         with col2:
             # Criar DataFrame para o gráfico
@@ -2034,7 +2034,7 @@ with tab6:
                 yaxis_title="Quantidade de Contratos",
                 height=400
             )
-            st.plotly_chart(fig_comp, width='stretch')
+            st.plotly_chart(fig_comp, use_container_width=True)
         
         st.markdown("---")
         
@@ -2059,7 +2059,7 @@ with tab6:
                 st.metric("Contratos Reconciliados", f"{len(df_ambos):,}")
                 st.metric("Valor Total (ComprasNet)", formatar_real(df_ambos['valorGlobal'].sum()))
                 
-                st.dataframe(df_ambos, width='stretch', height=400)
+                st.dataframe(df_ambos, use_container_width=True, height=400)
                 
                 # Download
                 csv = df_ambos.to_csv(index=False).encode('utf-8')
@@ -2099,7 +2099,7 @@ with tab6:
                 with col2:
                     st.metric("Vencidos", status_counts.get('Vencido', 0))
                 
-                st.dataframe(df_so_comprasnet, width='stretch', height=400)
+                st.dataframe(df_so_comprasnet, use_container_width=True, height=400)
                 
                 # Download
                 csv = df_so_comprasnet.to_csv(index=False).encode('utf-8')
@@ -2142,7 +2142,7 @@ with tab6:
                     total_val = pd.to_numeric(df_so_portal['Valor Empenhos Total'], errors='coerce').sum()
                     st.metric("Valor Total Empenhado", formatar_real(total_val))
                 
-                st.dataframe(df_so_portal, width='stretch', height=400)
+                st.dataframe(df_so_portal, use_container_width=True, height=400)
                 
                 # Download
                 csv = df_so_portal.to_csv(index=False).encode('utf-8')
@@ -2233,7 +2233,7 @@ with tab7:
         for col in ['Limite', 'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos']:
             df_busca_display[col] = df_busca_display[col].apply(formatar_real)
         
-        st.dataframe(df_busca_display, width='stretch', height=500)
+        st.dataframe(df_busca_display, use_container_width=True, height=500)
         
         # Download
         csv = df_busca_simp.to_csv(index=False).encode('utf-8')
@@ -2365,7 +2365,7 @@ with tab7:
                     except:
                         pass
                 
-                st.dataframe(df_exibir, width='stretch', height=500)
+                st.dataframe(df_exibir, use_container_width=True, height=500)
                 
                 # Download
                 csv = df_portal_filtered[colunas_selecionadas].to_csv(index=False).encode('utf-8')
@@ -2402,7 +2402,7 @@ with tab7:
                             height=400
                         )
                         
-                        st.plotly_chart(fig_tipo, width='stretch')
+                        st.plotly_chart(fig_tipo, use_container_width=True)
                 
                 with col2:
                     # Por grupo de despesa
@@ -2425,7 +2425,7 @@ with tab7:
                             yaxis={'categoryorder':'total ascending'}
                         )
                         
-                        st.plotly_chart(fig_grupo_portal, width='stretch')
+                        st.plotly_chart(fig_grupo_portal, use_container_width=True)
 
 # ==================== ABA 10: ANÁLISE DETALHADA DE CONTRATOS ====================
 with tab8:
@@ -2619,7 +2619,7 @@ with tab8:
             labels={'Faixa de Prazo': 'Faixa', 'Quantidade': 'Contratos'}
         )
         fig_prazo.update_traces(textposition='outside')
-        st.plotly_chart(fig_prazo, width='stretch')
+        st.plotly_chart(fig_prazo, use_container_width=True)
     
     with col2:
         st.markdown("### % Execução por Faixa de Prazo")
@@ -2631,14 +2631,14 @@ with tab8:
             labels={'Faixa de Prazo': 'Faixa', '% Empenhado Médio': '% Execução'}
         )
         fig_exec_prazo.update_traces(textposition='outside', marker_color='#17a2b8')
-        st.plotly_chart(fig_exec_prazo, width='stretch')
+        st.plotly_chart(fig_exec_prazo, use_container_width=True)
     
     with st.expander("📋 Ver Tabela - Análise por Prazo", expanded=False):
         prazo_display = prazo_analise.copy()
         prazo_display['Valor Total'] = prazo_display['Valor Total'].apply(formatar_real)
         prazo_display['% Empenhado Médio'] = prazo_display['% Empenhado Médio'].apply(formatar_percentual)
         prazo_display['% Tempo Decorrido'] = prazo_display['% Tempo Decorrido'].apply(formatar_percentual)
-        st.dataframe(prazo_display, width='stretch')
+        st.dataframe(prazo_display, use_container_width=True)
     
     st.markdown("---")
     
@@ -2679,7 +2679,7 @@ with tab8:
                 height=500,
                 yaxis={'categoryorder':'total ascending'}
             )
-            st.plotly_chart(fig_gest, width='stretch')
+            st.plotly_chart(fig_gest, use_container_width=True)
         
         with col2:
             st.markdown("### Top 15 Gestores - Execução")
@@ -2704,7 +2704,7 @@ with tab8:
                 height=500,
                 yaxis={'categoryorder':'total ascending'}
             )
-            st.plotly_chart(fig_gest_exec, width='stretch')
+            st.plotly_chart(fig_gest_exec, use_container_width=True)
         
         with st.expander("📋 Ver Tabela - Análise por Gestor", expanded=False):
             gestor_display = gestor_analise.copy()
@@ -2714,7 +2714,7 @@ with tab8:
             gestor_display['Dias Médios p/ Vencimento'] = gestor_display['Dias Médios p/ Vencimento'].apply(
                 lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
             )
-            st.dataframe(gestor_display, width='stretch', height=400)
+            st.dataframe(gestor_display, use_container_width=True, height=400)
     else:
         st.info("Dados de gestor não disponíveis para análise")
     
@@ -2752,7 +2752,7 @@ with tab8:
             )
             fig_centro.update_traces(textposition='outside', marker_color='#ffc107')
             fig_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_centro, width='stretch')
+            st.plotly_chart(fig_centro, use_container_width=True)
         
         with col2:
             st.markdown("### Top 15 Centros - Prazo Médio")
@@ -2766,7 +2766,7 @@ with tab8:
             )
             fig_prazo_centro.update_traces(textposition='outside', marker_color='#17a2b8')
             fig_prazo_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_prazo_centro, width='stretch')
+            st.plotly_chart(fig_prazo_centro, use_container_width=True)
         
         with st.expander("📋 Ver Tabela - Análise por Centro de Custos", expanded=False):
             centro_display = centro_analise.copy()
@@ -2776,7 +2776,7 @@ with tab8:
                 lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
             )
             centro_display['% Tempo Decorrido'] = centro_display['% Tempo Decorrido'].apply(formatar_percentual)
-            st.dataframe(centro_display, width='stretch', height=400)
+            st.dataframe(centro_display, use_container_width=True, height=400)
     else:
         st.info("Dados de centro de custos não disponíveis para análise")
     
@@ -2849,7 +2849,7 @@ with tab8:
         df_resultado_detalhado = df_detalhado_filtrado[colunas_exibir].copy()
         df_resultado_detalhado = df_resultado_detalhado.sort_values('Dias até Vencimento')
         
-        st.dataframe(df_resultado_detalhado.head(100), width='stretch', height=500)
+        st.dataframe(df_resultado_detalhado.head(100), use_container_width=True, height=500)
         st.info(f"Exibindo primeiros 100 de {len(df_resultado_detalhado)} registros")
         
         # Download
