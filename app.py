@@ -10,9 +10,10 @@ from PIL import Image,ImageDraw,ImageFont
 from buscador_contratos import BuscadorContratos
 import io
 import os
+import unicodedata
 
 st.set_page_config(page_title="Gestão de Contratos Públicos",layout="wide")
-#st.image("logo_policromia.png",width=180)
+
 def header_banner():
     W,H=2200,140
     bg=(0,104,157,255)
@@ -39,7 +40,7 @@ def header_banner():
 
     # LOGOS À DIREITA (calcular largura total)
     logos_direita=["logos/logo_Justica_Federal_5Regiao_branca.png", 
-                   #"logos/logo_Justica_Federal_Ceara_branca.png", 
+                   "logos/logo_Justica_Federal_Ceara_branca.png", 
                    "logos/Logo_PNUD_branca.png"]
     gap=28
     total_w=0
@@ -73,7 +74,7 @@ def header_banner():
     draw.text((texto_x, texto_y),texto,fill=(255,255,255,255),font=font)
     return banner
 
-st.image(header_banner(),use_container_width=True)
+st.image(header_banner(),width='stretch')
 
 # Função para formatação brasileira
 def formatar_real(valor):
@@ -88,20 +89,50 @@ def formatar_percentual(valor):
         return "0,0%"
     return f"{valor:.1f}%".replace(".", ",")
 
-# CSS customizado
+# CSS customizado - MELHORADO COM RESPONSIVIDADE
 st.markdown("""
     <style>
     .main {
         padding: 0rem 1rem;
     }
+    
+    /* Tabs responsivas - esconde overflow e permite scroll horizontal */
     .stTabs [data-baseweb="tab-list"] {
         gap: 2px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
     }
+    
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+        height: 4px;
+    }
+    
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+        background-color: #0068c9;
+        border-radius: 2px;
+    }
+    
     .stTabs [data-baseweb="tab"] {
-        padding: 10px 20px;
+        padding: 8px 16px;
         background-color: #f0f2f6;
         border-radius: 5px 5px 0px 0px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 14px;
     }
+    
+    /* Ajuste para telas pequenas */
+    @media (max-width: 768px) {
+        .stTabs [data-baseweb="tab"] {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    }
+    
     .stTabs [aria-selected="true"] {
         background-color: #0068c9;
         color: white;
@@ -218,20 +249,6 @@ def load_restos_pagar_data():
     
     return df
 
-# Função para carregar dados do portal (para buscas detalhadas)
-@st.cache_data
-def load_portal_data():
-    try:
-        df = pd.read_parquet('dados/Dados portal TRF5.parquet')
-    except:
-        df = pd.read_excel('dados/Dados portal TRF5.xlsx')
-    
-    # Converter Ano para string
-    if 'Ano' in df.columns:
-        df['Ano'] = df['Ano'].astype(str)
-    
-    return df
-
 # Função para carregar dados do comprasnet (para buscas detalhadas)
 @st.cache_data(show_spinner=True)
 def load_comprasnet_data():
@@ -244,7 +261,7 @@ df = df.dropna(subset=["numeroContrato","dataVigenciaFinal"])
 if df.empty:
     st.warning("Nenhum contrato encontrado.")
     st.stop()
-    
+
 df["dataVigenciaInicial"] = pd.to_datetime(df["dataVigenciaInicial"], errors="coerce")
 df["dataVigenciaFinal"] = pd.to_datetime(df["dataVigenciaFinal"], errors="coerce")
 df["valorGlobal"] = pd.to_numeric(df["valorGlobal"], errors="coerce").fillna(0)
@@ -260,16 +277,23 @@ df_empenhos = load_empenhos_data()
 df_pre_empenhos = load_pre_empenhos_data()
 df_rp = load_restos_pagar_data()
 
-# Título principal
-#st.title("💰 Portal Financeiro TRF5")
-#st.markdown("### Sistema de Acompanhamento e Análise de Gestão Orçamentária")
+# Função para normalizar texto
+def norm(s):
+    if pd.isna(s):
+        return ""
+    s = unicodedata.normalize("NFKD", str(s).lower())
+    return "".join(c for c in s if not unicodedata.combining(c))
 
-# Criar abas
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "📋 Lista de Contratos", "🚨 Alertas", "📊 Análises",
-    "💰 Análise financeira", "👥 Análise por Gestores", "🏢 Análise por Centro de Custos", 
-    "💳 Empenhos Detalhados",  "📋 Pré-Empenhos",  "📈 Restos a Pagar", "🔍 Buscador Detalhado"
-])
+# Criar abas principais
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "📋 Lista de Contratos", 
+    "🚨 Alertas", 
+    "📊 Análises dos contratos",
+    "💰 Análise financeira",  
+    "💳 Dados Orçamentários", 
+    "🔗 Reconciliação de Dados",
+    "🔍 Buscador Detalhado",
+    "📈 Análise Detalhada de Contratos"])
 
 # ==================== ABA 1: LISTA DE CONTRATOS ====================
 with tab1:
@@ -283,16 +307,13 @@ with tab1:
     modalidade = c5.multiselect("Modalidade de compra",sorted(df["nomeModalidadeCompra"].dropna().unique()))
     tipo = c6.multiselect("Tipo de contrato",sorted(df["nomeTipo"].dropna().unique()))
     categoria = c7.multiselect("Categoria",sorted(df["nomeCategoria"].dropna().unique()))
-    busca_texto = c8.text_input("Busca livre (objeto / processo)")
+    busca_texto = c8.text_input("Busca livre (objeto / informações complementares)")
     c9, c10, c11, c12 = st.columns(4)
-    valor_min = c9.number_input("Valor mínimo (R$)",min_value=0.0,value=0.0,step=10000.0,format="%.2f")
-    valor_max = c10.number_input("Valor máximo (R$)",min_value=0.0,value=float(df["valorGlobal"].max()),step=10000.0,format="%.2f")
-    parcelas = c11.multiselect("Nº de parcelas",sorted(df["numeroParcelas"].dropna().unique()))
-    valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df["valorParcela"].min()),
-        float(df["valorParcela"].max()),(float(df["valorParcela"].min()), float(df["valorParcela"].max())))
-    c13, c14 = st.columns(2)
-    data_ini = c13.date_input("Vigência final a partir de",value=df["dataVigenciaFinal"].min().date() if pd.notnull(df["dataVigenciaFinal"].min()) else None)
-    data_fim = c14.date_input("Vigência final até",value=df["dataVigenciaFinal"].max().date() if pd.notnull(df["dataVigenciaFinal"].max()) else None)
+    data_ini = c9.date_input("Vigência final a partir de",value=df["dataVigenciaFinal"].min().date() if pd.notnull(df["dataVigenciaFinal"].min()) else None)
+    data_fim = c10.date_input("Vigência final até",value=df["dataVigenciaFinal"].max().date() if pd.notnull(df["dataVigenciaFinal"].max()) else None)
+    numero_contrato = c11.multiselect("Número do contrato",sorted(df["numeroContrato"].dropna().unique()))
+    valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df["valorGlobal"].min()),
+        float(df["valorGlobal"].max()),(float(df["valorGlobal"].min()), float(df["valorGlobal"].max())))
     df_f = df.copy()
     if fornecedor:
         df_f = df_f[df_f["nomeRazaoSocialFornecedor"].isin(fornecedor)]
@@ -309,18 +330,16 @@ with tab1:
     if categoria:
         df_f = df_f[df_f["nomeCategoria"].isin(categoria)]
     if busca_texto:
-        texto = busca_texto.lower()
-        df_f = df_f[df_f["objeto"].str.lower().str.contains(texto,na=False) |
-                    df_f["processo"].astype(str).str.contains(texto,na=False)]
-    if parcelas:
-        df_f = df_f[df_f["numeroParcelas"].isin(parcelas)]
-    df_f = df_f[(df_f["valorGlobal"] >= valor_min) & (df_f["valorGlobal"] <= valor_max)]
+        texto = norm(busca_texto)
+        df_f = df_f[df_f["objeto"].apply(norm).str.contains(texto, na=False) | df_f["informacoesComplementares"].apply(norm).str.contains(texto, na=False)]
     if data_ini:
         df_f = df_f[df_f["dataVigenciaFinal"] >= pd.to_datetime(data_ini)]
     if data_fim:
         df_f = df_f[df_f["dataVigenciaFinal"] <= pd.to_datetime(data_fim)]
     df_f = df_f[(df_f["valorParcela"] >= valor_parcela_min) & (df_f["valorParcela"] <= valor_parcela_max)]
-    st.dataframe(df_f.sort_values("dataVigenciaFinal").reset_index(drop=True),use_container_width=True,height=600)
+    if numero_contrato:
+        df_f = df_f[df_f["numeroContrato"].isin(numero_contrato)]
+    st.dataframe(df_f.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
     st.caption(f"Contratos exibidos: {len(df_f)}")
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
@@ -365,41 +384,132 @@ with tab2:
     c34.metric("Vigentes fora de risco (>90d)", len(vigentes)-(len(v30)+len(v60)+len(v90)))
     c35.metric("Valor fora de risco", f"R$ {(vigentes['valorGlobal'].sum()-(v30['valorGlobal'].sum()+v60['valorGlobal'].sum()+v90['valorGlobal'].sum())):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c36.metric("Percentual fora de risco", f"{((len(vigentes)-(len(v30)+len(v60)+len(v90)))/len(vigentes)*100):.1f}%" if len(vigentes) > 0 else "0%")
-    st.dataframe(vigentes.sort_values("dataVigenciaFinal"),use_container_width=True)
+    colvigentes_1, colvigentes_2 = st.columns(2)
+    numero_contrato = colvigentes_1.multiselect("Número do contrato",sorted(vigentes["numeroContrato"].dropna().unique()))
+    fornecedor = colvigentes_2.multiselect("Fornecedor",sorted(vigentes["nomeRazaoSocialFornecedor"].dropna().unique()))
+    if numero_contrato:
+        vigentes = vigentes[vigentes["numeroContrato"].isin(numero_contrato)]
+    if fornecedor:
+        vigentes = vigentes[vigentes["nomeRazaoSocialFornecedor"].isin(fornecedor)] 
+    st.dataframe(vigentes.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
     st.divider()
     with st.container():
         st.markdown("### ⏰ Vencendo em até 30 dias")
         c13, c14, c15, c16 = st.columns(4)
         c13.metric("Qtd contratos", len(v30))
         c14.metric("Valor total", f"R$ {v30['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        c15.metric("Maior contrato", f"R$ {v30['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v30.empty else "R$ 0,00")
+        c15.metric("Valor do maior contrato", f"R$ {v30['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v30.empty else "R$ 0,00")
         c16.metric("Média por contrato", f"R$ {v30['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v30.empty else "R$ 0,00")
-        st.dataframe(v30.sort_values("dataVigenciaFinal"),use_container_width=True)
+        colv30_1, colv30_2 = st.columns(2)
+        numero_contrato = colv30_1.multiselect("Número do contrato",sorted(v30["numeroContrato"].dropna().unique()))
+        fornecedor = colv30_2.multiselect("Fornecedor",sorted(v30["nomeRazaoSocialFornecedor"].dropna().unique()))
+        if numero_contrato:
+            v30 = v30[v30["numeroContrato"].isin(numero_contrato)]
+        if fornecedor:
+            v30 = v30[v30["nomeRazaoSocialFornecedor"].isin(fornecedor)]
+        st.dataframe(v30.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
     with st.container():
         st.markdown("### ⏳ Vencendo entre 31 e 60 dias")
         c17, c18, c19, c20 = st.columns(4)
         c17.metric("Qtd contratos", len(v60))
         c18.metric("Valor total", f"R$ {v60['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        c19.metric("Maior contrato", f"R$ {v60['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v60.empty else "R$ 0,00")
+        c19.metric("Valor do maior contrato", f"R$ {v60['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v60.empty else "R$ 0,00")
         c20.metric("Média por contrato", f"R$ {v60['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v60.empty else "R$ 0,00")
-        st.dataframe(v60.sort_values("dataVigenciaFinal"),use_container_width=True)
+        colv60_1, colv60_2 = st.columns(2)
+        numero_contrato = colv60_1.multiselect("Número do contrato",sorted(v60["numeroContrato"].dropna().unique()))
+        fornecedor = colv60_2.multiselect("Fornecedor",sorted(v60["nomeRazaoSocialFornecedor"].dropna().unique()))
+        if numero_contrato:
+            v60 = v60[v60["numeroContrato"].isin(numero_contrato)]
+        if fornecedor:
+            v60 = v60[v60["nomeRazaoSocialFornecedor"].isin(fornecedor)]
+        st.dataframe(v60.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
     with st.container():
         st.markdown("### ⏳ Vencendo entre 61 e 90 dias")
         c21, c22, c23, c24 = st.columns(4)
         c21.metric("Qtd contratos", len(v90))
         c22.metric("Valor total", f"R$ {v90['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        c23.metric("Maior contrato", f"R$ {v90['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v90.empty else "R$ 0,00")
+        c23.metric("Valor do maior contrato", f"R$ {v90['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v90.empty else "R$ 0,00")
         c24.metric("Média por contrato", f"R$ {v90['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v90.empty else "R$ 0,00")
-        st.dataframe(v90.sort_values("dataVigenciaFinal"),use_container_width=True)
+        colv90_1, colv90_2 = st.columns(2)
+        numero_contrato = colv90_1.multiselect("Número do contrato",sorted(v90["numeroContrato"].dropna().unique()))
+        fornecedor = colv90_2.multiselect("Fornecedor",sorted(v90["nomeRazaoSocialFornecedor"].dropna().unique()))
+        if numero_contrato:
+            v90 = v90[v90["numeroContrato"].isin(numero_contrato)]
+        if fornecedor:
+            v90 = v90[v90["nomeRazaoSocialFornecedor"].isin(fornecedor)]
+        st.dataframe(v90.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
     with st.container():
         st.markdown("### 🔴 Contratos vencidos")
         c25, c26, c27, c28 = st.columns(4)
         c25.metric("Qtd contratos", len(vencidos))
         c26.metric("Valor total", f"R$ {vencidos['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        c27.metric("Maior contrato", f"R$ {vencidos['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vencidos.empty else "R$ 0,00")
+        c27.metric("Valor do maior contrato", f"R$ {vencidos['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vencidos.empty else "R$ 0,00")
         c28.metric("Média por contrato", f"R$ {vencidos['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vencidos.empty else "R$ 0,00")
-        st.dataframe(vencidos.sort_values("dataVigenciaFinal"),use_container_width=True)
+        colvencidos_1, colvencidos_2 = st.columns(2)
+        numero_contrato = colvencidos_1.multiselect("Número do contrato",sorted(vencidos["numeroContrato"].dropna().unique()))
+        fornecedor = colvencidos_2.multiselect("Fornecedor",sorted(vencidos["nomeRazaoSocialFornecedor"].dropna().unique()))
+        if numero_contrato:
+            vencidos = vencidos[vencidos["numeroContrato"].isin(numero_contrato)]
+        if fornecedor:
+            vencidos = vencidos[vencidos["nomeRazaoSocialFornecedor"].isin(fornecedor)]        
+        st.dataframe(vencidos.sort_values("dataVigenciaFinal").reset_index(drop=True),width='stretch')
+    
+    # ============ ANÁLISE POR CATEGORIA - CONTRATOS VENCENDO ============
+    st.divider()
+    st.markdown("## 📂 Análises dos contratos próximos do vencimento")
+    
+    # Combinar todos os contratos em risco
+    contratos_risco = pd.concat([v30, v60, v90])
+    
+    if len(contratos_risco) > 0:
+        # Análise por categoria
+        cat_risco = contratos_risco.groupby('nomeCategoria').agg({'numeroContrato': 'count', 'valorGlobal': 'sum', 'dataVigenciaFinal': 'min'}).reset_index()
+        cat_risco.columns = ['Categoria', 'Quantidade', 'Valor Total', 'Data Mais Próxima']
+        cat_risco = cat_risco.sort_values('Quantidade', ascending=False)
 
+        st.write(cat_risco)
+        
+        # Métricas resumo
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Quantidade de categorias em risco", cat_risco['Quantidade'].sum())
+        with col2:
+            st.metric("Categoria Mais Crítica", cat_risco.iloc[0]['Categoria'] if len(cat_risco) > 0 else "N/A")
+        with col3:
+            st.metric("Contratos nessa Categoria", int(cat_risco.iloc[0]['Quantidade']) if len(cat_risco) > 0 else 0)
+        with col4:
+            st.metric("Valor Total em Risco", formatar_real(cat_risco['Valor Total'].sum()))
+        
+        # Gráfico de categorias
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Quantidade de Contratos")
+            top_cat_qtd = cat_risco
+            fig_cat_qtd = go.Figure()
+            fig_cat_qtd.add_trace(go.Bar(x=top_cat_qtd['Quantidade'], y=top_cat_qtd['Categoria'], orientation='h',
+                marker_color='#dc3545', text=top_cat_qtd['Quantidade'], textposition='auto'))
+            fig_cat_qtd.update_layout(xaxis_title="Quantidade de Contratos", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_cat_qtd, width='stretch')
+        
+        with col2:
+            st.markdown("### Valor Total")
+            top_cat_valor = cat_risco.nlargest(100, 'Valor Total')
+            fig_cat_valor = go.Figure()
+            fig_cat_valor.add_trace(go.Bar(x=top_cat_valor['Valor Total'], y=top_cat_valor['Categoria'], orientation='h',
+                marker_color='#ffc107', text=top_cat_valor['Valor Total'].apply(lambda x: formatar_real(x)), textposition='auto'))
+            fig_cat_valor.update_layout(xaxis_title="Valor Total (R$)", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_cat_valor, width='stretch')
+        
+        # Tabela com detalhes
+        st.markdown("### 📋 Detalhamento por Categoria")
+        cat_display = cat_risco.copy()
+        cat_display['Valor Total'] = cat_display['Valor Total'].apply(formatar_real)
+        cat_display['Data Mais Próxima'] = pd.to_datetime(cat_display['Data Mais Próxima']).dt.strftime('%d/%m/%Y')
+        st.dataframe(cat_display, width='stretch')
+    else:
+        st.success("✅ Não há contratos em risco de vencimento nos próximos 90 dias!")
+    
 # ==================== ABA 3: ANÁLISES ====================
 with tab3:
     st.subheader("Análises dos contratos")
@@ -430,7 +540,7 @@ with tab3:
         st.markdown("### Contratos por ano")
         fig=px.bar(evolucao,x="ano",y="contratos",labels={"ano":"Ano","contratos":"Quantidade"})
         fig.update_xaxes(tickangle=0,tickmode="linear",dtick=1)
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,width='stretch')
         st.caption(f"Média anual: {evolucao['contratos'].mean():.0f} contratos")
 
     with col2:
@@ -438,20 +548,26 @@ with tab3:
         fig_valor = px.bar(evolucao, x="ano", y="valor", labels={"ano": "Ano", "valor": "Valor contratado (R$)"})
         fig_valor.update_xaxes(tickangle=0, tickmode="linear", dtick=1)
         fig_valor.update_yaxes(tickprefix="R$ ", separatethousands=True)
-        st.plotly_chart(fig_valor, use_container_width=True)
+        st.plotly_chart(fig_valor, width='stretch')
         st.caption(f"Média anual: R$ {evolucao['valor'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     
     # Comparação ano a ano
-    st.markdown("### 📊 Comparação detalhada por ano")
+    st.markdown("### 📊 Comparação Detalhada por Ano")
     evolucao["var_contratos_%"] = evolucao["contratos"].pct_change() * 100
     evolucao["var_valor_%"] = evolucao["valor"].pct_change() * 100
     evolucao["ticket_medio"] = evolucao["valor"] / evolucao["contratos"]
-    st.dataframe(evolucao.style.format({
-        "valor": "R$ {:,.2f}",
-        "var_contratos_%": "{:.1f}%",
-        "var_valor_%": "{:.1f}%",
-        "ticket_medio": "R$ {:,.2f}"
-    }), use_container_width=True)
+    
+    # Renomear colunas
+    evolucao_display = evolucao.copy()
+    evolucao_display.columns = ['Ano', 'Contratos', 'Valor', 'Variação Contratos %', 'Variação Valor %', 'Ticket Médio']
+    
+    with st.expander("📋 Ver Tabela Detalhada - Comparação por Ano", expanded=False):
+        st.dataframe(evolucao_display.style.format({
+            "Valor": "R$ {:,.2f}",
+            "Variação Contratos %": "{:.1f}%",
+            "Variação Valor %": "{:.1f}%",
+            "Ticket Médio": "R$ {:,.2f}"
+        }), width='stretch')
     st.divider()
 
     # ============ ANÁLISE POR STATUS ============
@@ -465,24 +581,25 @@ with tab3:
     
     with col1:
         st.markdown("### Quantidade por status")
-        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
+        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),width='stretch')
 
     with col2:
         st.markdown("### Valor total por status")
         fig_total = px.bar(status_analise,x="status",y="valor_total",labels={"status":"Status","valor_total":"Valor total (R$)"})
-        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,use_container_width=True)
+        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,width='stretch')
 
     with col3:
         st.markdown("### Ticket médio por status")
         fig_medio = px.bar(status_analise,x="status",y="valor_medio",labels={"status":"Status","valor_medio":"Valor médio (R$)"})
-        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,use_container_width=True)
+        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,width='stretch')
         
-    st.dataframe(status_analise.style.format({
-        "valor_total": "R$ {:,.2f}",
-        "valor_medio": "R$ {:,.2f}",
-        "valor_maximo": "R$ {:,.2f}",
-        "valor_minimo": "R$ {:,.2f}"
-    }), use_container_width=True)
+    with st.expander("📋 Ver Tabela Detalhada - Análise por Status", expanded=False):
+        st.dataframe(status_analise.style.format({
+            "valor_total": "R$ {:,.2f}",
+            "valor_medio": "R$ {:,.2f}",
+            "valor_maximo": "R$ {:,.2f}",
+            "valor_minimo": "R$ {:,.2f}"
+        }), width='stretch')
     st.divider()
 
     # ============ ANÁLISE POR CATEGORIA ============
@@ -503,20 +620,25 @@ with tab3:
     with col1:
         st.markdown("### Top 10 categorias - Quantidade")
         top_cat_qtd = cat_analise.head(10).sort_values("quantidade")
-        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),use_container_width=True)
+        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),width='stretch')
 
     with col2:
         st.markdown("### Top 10 categorias - Valor")
         top_cat_valor = cat_analise.head(10).sort_values("valor_total")
-        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,use_container_width=True)
+        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,width='stretch')
 
     
-    st.markdown("### Detalhamento completo por categoria")
-    st.dataframe(cat_analise.style.format({
-        "valor_total": "R$ {:,.2f}",
-        "valor_medio": "R$ {:,.2f}",
-        "perc_vigentes": "{:.1f}%"
-    }), use_container_width=True)
+    st.markdown("### Detalhamento Completo por Categoria")
+    # Renomear colunas
+    cat_display = cat_analise.copy()
+    cat_display.columns = ['Categoria', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Vencidos', '% Vigentes']
+    
+    with st.expander("📋 Ver Tabela Detalhada - Análise por Categoria", expanded=False):
+        st.dataframe(cat_display.reset_index(drop=True).style.format({
+            "Valor Total": "R$ {:,.2f}",
+            "Valor Médio": "R$ {:,.2f}",
+            "% Vigentes": "{:.1f}%"
+        }), width='stretch')
     st.divider()
 
     # ============ ANÁLISE POR FORNECEDOR ============
@@ -531,6 +653,7 @@ with tab3:
     ).reset_index().sort_values("valor_total", ascending=False)
     
     forn_analise["participacao_%"] = (forn_analise["valor_total"] / forn_analise["valor_total"].sum() * 100).round(2)
+    forn_analise.columns = ['Fornecedor', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Categorias', 'Participação %']
     
     # Função para quebrar linhas longas
     def quebrar_linha(texto, max_chars=40):
@@ -556,37 +679,30 @@ with tab3:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Top 15 fornecedores - Valor total")
+        st.markdown("### Top 15 Fornecedores - Valor Total")
         top_forn = forn_analise.head(15).copy()
-        top_forn["nome_curto"] = top_forn["nomeRazaoSocialFornecedor"].apply(quebrar_linha)
-        top_forn = top_forn.sort_values("valor_total")
-        fig_forn_valor = px.bar(top_forn,x="valor_total",y="nome_curto",orientation="h",labels={"valor_total":"Valor (R$)","nome_curto":"Fornecedor"})
+        top_forn["nome_curto"] = top_forn["Fornecedor"].apply(quebrar_linha)
+        top_forn = top_forn.sort_values("Valor Total")
+        fig_forn_valor = px.bar(top_forn,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Fornecedor"})
         fig_forn_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
-        st.plotly_chart(fig_forn_valor,use_container_width=True)
+        st.plotly_chart(fig_forn_valor,width='stretch')
 
     with col2:
-        st.markdown("### Top 15 fornecedores - Quantidade")
+        st.markdown("### Top 15 Fornecedores - Quantidade")
         top_forn_qtd = forn_analise.head(15).copy()
-        top_forn_qtd["nome_curto"] = top_forn_qtd["nomeRazaoSocialFornecedor"].apply(quebrar_linha)
-        top_forn_qtd = top_forn_qtd.sort_values("quantidade")
-        st.plotly_chart(px.bar(top_forn_qtd,x="quantidade",y="nome_curto",orientation="h",labels={"quantidade":"Quantidade","nome_curto":"Fornecedor"}),use_container_width=True)
-
+        top_forn_qtd["nome_curto"] = top_forn_qtd["Fornecedor"].apply(quebrar_linha)
+        top_forn_qtd = top_forn_qtd.sort_values("Quantidade")
+        st.plotly_chart(px.bar(top_forn_qtd,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Fornecedor"}),width='stretch')
     
-    st.markdown("### Concentração de fornecedores")
-    c1, c2, c3, c4 = st.columns(4)
-    top5_valor = forn_analise.head(5)["valor_total"].sum()
-    top10_valor = forn_analise.head(10)["valor_total"].sum()
-    c1.metric("Top 5 fornecedores", f"{(top5_valor/df['valorGlobal'].sum()*100):.1f}% do total")
-    c2.metric("Top 10 fornecedores", f"{(top10_valor/df['valorGlobal'].sum()*100):.1f}% do total")
-    c3.metric("Fornecedor dominante", f"{forn_analise.iloc[0]['participacao_%']:.1f}%")
-    c4.metric("Fornecedores com 1 contrato", len(forn_analise[forn_analise["quantidade"] == 1]))
+    # Detalhamento completo por fornecedor
+    st.markdown("### Detalhamento Completo por Fornecedor")
+    with st.expander("📋 Ver Tabela Detalhada - Análise por Fornecedor", expanded=False):
+        st.dataframe(forn_analise.reset_index(drop=True).style.format({
+            "Valor Total": "R$ {:,.2f}",
+            "Valor Médio": "R$ {:,.2f}",
+            "Participação %": "{:.2f}%"
+        }), width='stretch')
     
-    st.markdown("### Detalhamento dos principais fornecedores")
-    st.dataframe(forn_analise.head(20).style.format({
-        "valor_total": "R$ {:,.2f}",
-        "valor_medio": "R$ {:,.2f}",
-        "participacao_%": "{:.2f}%"
-    }), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR MODALIDADE ============
@@ -600,23 +716,26 @@ with tab3:
     
     mod_analise["participacao_%"] = (mod_analise["valor_total"] / mod_analise["valor_total"].sum() * 100).round(2)
     
+    # RENOMEAR COLUNAS ANTES DE USAR
+    mod_analise.columns = ['Modalidade', 'Quantidade', 'Valor Total', 'Valor Médio', 'Participação %']
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Distribuição por modalidade")
-        st.plotly_chart(px.bar(mod_analise,x="nomeModalidadeCompra",y="quantidade",labels={"nomeModalidadeCompra":"Modalidade","quantidade":"Quantidade"}),use_container_width=True)
+        st.markdown("### Distribuição por Modalidade")
+        st.plotly_chart(px.bar(mod_analise,x="Modalidade",y="Quantidade",labels={"Modalidade":"Modalidade","Quantidade":"Quantidade"}),width='stretch')
 
     with col2:
-        st.markdown("### Valor por modalidade")
-        fig_mod = px.bar(mod_analise,x="nomeModalidadeCompra",y="valor_total",labels={"nomeModalidadeCompra":"Modalidade","valor_total":"Valor (R$)"})
-        fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,use_container_width=True)
+        st.markdown("### Valor por Modalidade")
+        fig_mod = px.bar(mod_analise,x="Modalidade",y="Valor Total",labels={"Modalidade":"Modalidade","Valor Total":"Valor (R$)"})
+        fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,width='stretch')
 
     
-    st.dataframe(mod_analise.style.format({
-        "valor_total": "R$ {:,.2f}",
-        "valor_medio": "R$ {:,.2f}",
-        "participacao_%": "{:.2f}%"
-    }), use_container_width=True)
+    st.dataframe(mod_analise.reset_index(drop=True).style.format({
+        "Valor Total": "R$ {:,.2f}",
+        "Valor Médio": "R$ {:,.2f}",
+        "Participação %": "{:.2f}%"
+    }), width='stretch')
     st.divider()
 
     # ============ ANÁLISE POR TIPO ============
@@ -628,22 +747,25 @@ with tab3:
         valor_medio=("valorGlobal", "mean")
     ).reset_index().sort_values("valor_total", ascending=False)
     
+    # RENOMEAR COLUNAS ANTES DE USAR
+    tipo_analise.columns = ['Tipo', 'Quantidade', 'Valor Total', 'Valor Médio']
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Quantidade por tipo")
-        st.plotly_chart(px.bar(tipo_analise,x="nomeTipo",y="quantidade",labels={"nomeTipo":"Tipo","quantidade":"Quantidade"}),use_container_width=True)
+        st.markdown("### Quantidade por Tipo")
+        st.plotly_chart(px.bar(tipo_analise,x="Tipo",y="Quantidade",labels={"Tipo":"Tipo","Quantidade":"Quantidade"}),width='stretch')
 
     with col2:
-        st.markdown("### Valor por tipo")
-        fig_tipo = px.bar(tipo_analise,x="nomeTipo",y="valor_total",labels={"nomeTipo":"Tipo","valor_total":"Valor (R$)"})
-        fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,use_container_width=True)
+        st.markdown("### Valor por Tipo")
+        fig_tipo = px.bar(tipo_analise,x="Tipo",y="Valor Total",labels={"Tipo":"Tipo","Valor Total":"Valor (R$)"})
+        fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,width='stretch')
 
     
     st.dataframe(tipo_analise.style.format({
-        "valor_total": "R$ {:,.2f}",
-        "valor_medio": "R$ {:,.2f}"
-    }), use_container_width=True)
+        "Valor Total": "R$ {:,.2f}",
+        "Valor Médio": "R$ {:,.2f}"
+    }), width='stretch')
     st.divider()
 
     # ============ ANÁLISE CRUZADA ============
@@ -651,11 +773,21 @@ with tab3:
     
     st.markdown("### Categoria × Status")
     cat_status = pd.crosstab(df["nomeCategoria"], df["status"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
-    st.dataframe(cat_status.style.format("R$ {:,.2f}"), use_container_width=True)
+    # Formatar valores manualmente
+    cat_status_display = cat_status.copy()
+    for col in cat_status_display.columns:
+        cat_status_display[col] = cat_status_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    with st.expander("📋 Ver Tabela - Categoria × Status", expanded=False):
+        st.dataframe(cat_status_display, width='stretch')
     
     st.markdown("### Modalidade × Ano")
     mod_ano = pd.crosstab(df["nomeModalidadeCompra"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
-    st.dataframe(mod_ano.style.format("R$ {:,.2f}"), use_container_width=True)
+    # Formatar valores manualmente
+    mod_ano_display = mod_ano.copy()
+    for col in mod_ano_display.columns:
+        mod_ano_display[col] = mod_ano_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    with st.expander("📋 Ver Tabela - Modalidade × Ano", expanded=False):
+        st.dataframe(mod_ano_display, width='stretch')
     st.divider()
 
     # ============ ANÁLISE DE UNIDADES ============
@@ -668,1097 +800,1363 @@ with tab3:
         categorias=("nomeCategoria", "nunique")
     ).reset_index().sort_values("valor_total", ascending=False)
     
+    # RENOMEAR COLUNAS ANTES DE USAR
+    unid_analise.columns = ['Unidade', 'Quantidade', 'Valor Total', 'Fornecedores', 'Categorias']
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Top 10 unidades - Contratos")
+        st.markdown("### Top 10 Unidades - Contratos")
         top_unid = unid_analise.head(10).copy()
-        top_unid["nome_curto"] = top_unid["nomeUnidadeRealizadoraCompra"].apply(quebrar_linha)
-        top_unid = top_unid.sort_values("quantidade")
-        st.plotly_chart(px.bar(top_unid,x="quantidade",y="nome_curto",orientation="h",labels={"quantidade":"Quantidade","nome_curto":"Unidade"}),use_container_width=True)
+        top_unid["nome_curto"] = top_unid["Unidade"].apply(quebrar_linha)
+        top_unid = top_unid.sort_values("Quantidade")
+        st.plotly_chart(px.bar(top_unid,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Unidade"}),width='stretch')
 
     with col2:
-        st.markdown("### Top 10 unidades - Valor")
+        st.markdown("### Top 10 Unidades - Valor")
         top_unid_valor = unid_analise.head(10).copy()
-        top_unid_valor["nome_curto"] = top_unid_valor["nomeUnidadeRealizadoraCompra"].apply(quebrar_linha)
-        top_unid_valor = top_unid_valor.sort_values("valor_total")
-        fig_unid = px.bar(top_unid_valor,x="valor_total",y="nome_curto",orientation="h",labels={"valor_total":"Valor (R$)","nome_curto":"Unidade"})
-        fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,use_container_width=True)
+        top_unid_valor["nome_curto"] = top_unid_valor["Unidade"].apply(quebrar_linha)
+        top_unid_valor = top_unid_valor.sort_values("Valor Total")
+        fig_unid = px.bar(top_unid_valor,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Unidade"})
+        fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,width='stretch')
 
     
-    st.dataframe(unid_analise.head(15).style.format({
-        "valor_total": "R$ {:,.2f}"
-    }), use_container_width=True)
+    with st.expander("📋 Ver Tabela Detalhada - Top 15 Unidades", expanded=False):
+        st.dataframe(unid_analise.head(15).style.format({
+            "Valor Total": "R$ {:,.2f}"
+        }), width='stretch')
     st.divider()
-
-    # ============ INDICADORES AVANÇADOS ============
-    st.markdown("## 🎯 Indicadores Avançados")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Concentração
-    hhi_fornecedor = ((forn_analise["participacao_%"] / 100) ** 2).sum()
-    col1.metric("Índice HHI Fornecedores", f"{hhi_fornecedor:.4f}", 
-                help="Índice de concentração (0=pulverizado, 1=monopólio)")
-    
-    # Taxa de renovação
-    taxa_vigente = len(df[df["status"] == "Vigente"]) / len(df) * 100
-    col2.metric("Taxa de vigência", f"{taxa_vigente:.1f}%")
-    
-    # Ticket médio
-    ticket_vigente = df[df["status"] == "Vigente"]["valorGlobal"].mean()
-    ticket_vencido = df[df["status"] == "Vencido"]["valorGlobal"].mean()
-    col3.metric("Ticket vigente", f"R$ {ticket_vigente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    col4.metric("Ticket vencido", f"R$ {ticket_vencido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    
-    st.markdown("### Distribuição de valores")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Mínimo", f"R$ {df['valorGlobal'].min():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c2.metric("25º percentil", f"R$ {df['valorGlobal'].quantile(0.25):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c3.metric("Mediana", f"R$ {df['valorGlobal'].median():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c4.metric("75º percentil", f"R$ {df['valorGlobal'].quantile(0.75):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c5.metric("Máximo", f"R$ {df['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
 # ==================== ABA 4: VISÃO GERAL & FILTROS ====================
 with tab4:
     st.header("Análise Financeira")
-    
-    # Filtros em colunas
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        anos_disponiveis = sorted(df_resumo['Ano'].unique())
-        ano_selecionado = st.multiselect("Ano", options=anos_disponiveis, default=[], key="ano_tab1")
-    
-    with col2:
-        gestores_disponiveis = sorted([g for g in df_resumo['Gestor(a)'].unique() if g != 'Não informado'])
-        gestor_selecionado = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, default=[], key="gestor_tab1")
-    
-    with col3:
-        centros_disponiveis = sorted([c for c in df_resumo['Centro de Custo'].unique() if c != 'Não informado'])
-        centro_selecionado = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, default=[], key="centro_tab1")
-    
-    # Aplicar filtros
-    df_filtered = df_resumo.copy()
-    
-    if ano_selecionado:
-        df_filtered = df_filtered[df_filtered['Ano'].isin(ano_selecionado)]
-    
-    if gestor_selecionado and 'Todos' not in gestor_selecionado:
-        df_filtered = df_filtered[df_filtered['Gestor(a)'].isin(gestor_selecionado)]
-    
-    if centro_selecionado and 'Todos' not in centro_selecionado:
-        df_filtered = df_filtered[df_filtered['Centro de Custo'].isin(centro_selecionado)]
-    
-    st.markdown("---")
-    
-    # Calcular indicadores principais
-    limite_gastos = df_filtered['Limite'].sum()
-    valor_pre_empenhado = df_filtered['Pré-empenhado'].sum()
-    valor_empenhado = df_filtered['Empenhado'].sum()
-    valor_pago = df_filtered['Valor Empenhos Pagos'].sum()
-    limite_disponivel = limite_gastos - valor_pre_empenhado - valor_empenhado
-    valor_a_pagar = valor_empenhado - valor_pago
-    
-    # Mostrar indicadores principais em cards
-    st.subheader("📊 Indicadores Financeiros Principais")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Limite de Gastos", formatar_real(limite_gastos), 
-                 help="Valor Limite Disponível")
-        st.metric("Valor Empenhado", formatar_real(valor_empenhado), 
-                 help="Soma dos empenhos totais")
-    
-    with col2:
-        st.metric("Valor Pago", formatar_real(valor_pago),
-                 help="Soma dos valores pagos")
-        st.metric("Valor a Pagar", formatar_real(valor_a_pagar),
-                 help="Empenhado - Pago")
-    
-    with col3:
-        st.metric("Pré-Empenhado", formatar_real(valor_pre_empenhado),
-                 help="Valor de pré-empenhos a empenhar")
-        st.metric("Limite Disponível", formatar_real(limite_disponivel),
-                 help="Limite - Pré-Empenhos - Empenhos")
-    
-    with col4:
-        # Indicador de execução
-        perc_execucao = (valor_empenhado / limite_gastos * 100) if limite_gastos > 0 else 0
-        st.metric("Execução Orçamentária", formatar_percentual(perc_execucao),
-                 help="Percentual do limite que foi empenhado")
+    subtab1_fin, subtab2_fin, subtab3_fin = st.tabs([
+        "💰 Análises",
+        "👥 Perfil dos Gestores", 
+        "🏢 Análise por Centro de Custos"
+    ])
+
+    with subtab1_fin:    
+        # Filtros em colunas
+        col1, col2, col3 = st.columns(3)
         
-        # Indicador de pagamento
-        perc_pagamento = (valor_pago / valor_empenhado * 100) if valor_empenhado > 0 else 0
-        st.metric("Taxa de Pagamento", formatar_percentual(perc_pagamento),
-                 help="Percentual do empenhado que foi pago")
-    
-    st.markdown("---")
-    
-    # Gráficos de análise temporal
-    st.subheader("📈 Análise Temporal")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Evolução por ano
-        evolucao_ano = df_filtered.groupby('Ano').agg({
+        with col1:
+            anos_disponiveis = sorted(df_resumo['Ano'].unique())
+            ano_selecionado = st.multiselect("Ano", options=anos_disponiveis, default=[], key="ano_tab1")
+        
+        with col2:
+            gestores_disponiveis = sorted([g for g in df_resumo['Gestor(a)'].unique() if g != 'Não informado'])
+            gestor_selecionado = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, default=[], key="gestor_tab1")
+        
+        with col3:
+            centros_disponiveis = sorted([c for c in df_resumo['Centro de Custo'].unique() if c != 'Não informado'])
+            centro_selecionado = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, default=[], key="centro_tab1")
+        
+        # Aplicar filtros
+        df_filtered = df_resumo.copy()
+        
+        if ano_selecionado:
+            df_filtered = df_filtered[df_filtered['Ano'].isin(ano_selecionado)]
+        
+        if gestor_selecionado and 'Todos' not in gestor_selecionado:
+            df_filtered = df_filtered[df_filtered['Gestor(a)'].isin(gestor_selecionado)]
+        
+        if centro_selecionado and 'Todos' not in centro_selecionado:
+            df_filtered = df_filtered[df_filtered['Centro de Custo'].isin(centro_selecionado)]
+        
+        st.markdown("---")
+        
+        # Calcular indicadores principais
+        limite_gastos = df_filtered['Limite'].sum()
+        valor_pre_empenhado = df_filtered['Pré-empenhado'].sum()
+        valor_empenhado = df_filtered['Empenhado'].sum()
+        valor_pago = df_filtered['Valor Empenhos Pagos'].sum()
+        limite_disponivel = limite_gastos - valor_pre_empenhado - valor_empenhado
+        valor_a_pagar = valor_empenhado - valor_pago
+        
+        # Mostrar indicadores principais em cards
+        st.subheader("📊 Indicadores Financeiros Principais")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Limite de Gastos", formatar_real(limite_gastos), 
+                    help="Valor Limite Disponível")
+            st.metric("Valor Empenhado", formatar_real(valor_empenhado), 
+                    help="Soma dos empenhos totais")
+        
+        with col2:
+            st.metric("Valor Pago", formatar_real(valor_pago),
+                    help="Soma dos valores pagos")
+            st.metric("Valor a Pagar", formatar_real(valor_a_pagar),
+                    help="Empenhado - Pago")
+        
+        with col3:
+            st.metric("Pré-Empenhado", formatar_real(valor_pre_empenhado),
+                    help="Valor de pré-empenhos a empenhar")
+            st.metric("Limite Disponível", formatar_real(limite_disponivel),
+                    help="Limite - Pré-Empenhos - Empenhos")
+        
+        with col4:
+            # Indicador de execução
+            perc_execucao = (valor_empenhado / limite_gastos * 100) if limite_gastos > 0 else 0
+            st.metric("Execução Orçamentária", formatar_percentual(perc_execucao),
+                    help="Percentual do limite que foi empenhado")
+            
+            # Indicador de pagamento
+            perc_pagamento = (valor_pago / valor_empenhado * 100) if valor_empenhado > 0 else 0
+            st.metric("Taxa de Pagamento", formatar_percentual(perc_pagamento),
+                    help="Percentual do empenhado que foi pago")
+        
+        st.markdown("---")
+        
+        # Gráficos de análise temporal
+        st.subheader("📈 Análise Temporal")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Evolução por ano
+            evolucao_ano = df_filtered.groupby('Ano').agg({
+                'Limite': 'sum',
+                'Empenhado': 'sum',
+                'Valor Empenhos Pagos': 'sum'
+            }).reset_index()
+            
+            fig_evolucao = go.Figure()
+            fig_evolucao.add_trace(go.Bar(
+                name='Limite',
+                x=evolucao_ano['Ano'],
+                y=evolucao_ano['Limite'],
+                marker_color='lightblue'
+            ))
+            fig_evolucao.add_trace(go.Bar(
+                name='Empenhado',
+                x=evolucao_ano['Ano'],
+                y=evolucao_ano['Empenhado'],
+                marker_color='#0068c9'
+            ))
+            fig_evolucao.add_trace(go.Bar(
+                name='Pago',
+                x=evolucao_ano['Ano'],
+                y=evolucao_ano['Valor Empenhos Pagos'],
+                marker_color='#28a745'
+            ))
+            
+            fig_evolucao.update_layout(
+                title="Evolução Anual dos Valores",
+                xaxis_title="Ano",
+                yaxis_title="Valor (R$)",
+                barmode='group',
+                height=400
+            )
+            
+            st.plotly_chart(fig_evolucao, width='stretch')
+        
+        with col2:
+            # Gráfico comparativo Empenhado vs Pago
+            st.subheader("💰 Empenhado vs Pago")
+            
+            if valor_empenhado > 0:
+                # Calcular percentuais
+                perc_pago = (valor_pago / valor_empenhado * 100) if valor_empenhado > 0 else 0
+                perc_a_pagar = (valor_a_pagar / valor_empenhado * 100) if valor_empenhado > 0 else 0
+                
+                # Criar gráfico de barras horizontais empilhadas
+                fig_emp_pago = go.Figure()
+                
+                fig_emp_pago.add_trace(go.Bar(
+                    name='Pago',
+                    x=[valor_pago],
+                    y=['Empenho'],
+                    orientation='h',
+                    marker=dict(color='#28a745'),
+                    text=[formatar_real(valor_pago)],
+                    textposition='inside',
+                    hovertemplate=f'Pago: {formatar_real(valor_pago)}<br>({perc_pago:.1f}%)<extra></extra>'
+                ))
+                
+                fig_emp_pago.add_trace(go.Bar(
+                    name='A Pagar',
+                    x=[valor_a_pagar],
+                    y=['Empenho'],
+                    orientation='h',
+                    marker=dict(color='#ffc107'),
+                    text=[formatar_real(valor_a_pagar)],
+                    textposition='inside',
+                    hovertemplate=f'A Pagar: {formatar_real(valor_a_pagar)}<br>({perc_a_pagar:.1f}%)<extra></extra>'
+                ))
+                
+                fig_emp_pago.update_layout(
+                    barmode='stack',
+                    height=400,
+                    xaxis_title="Valor (R$)",
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    xaxis=dict(range=[0, valor_empenhado * 1.1])
+                )
+                
+                # Adicionar linha de referência para 100% (empenhado total)
+                fig_emp_pago.add_vline(x=valor_empenhado, line_dash="dash", line_color="gray", 
+                                    annotation_text=f"Total Empenhado: {formatar_real(valor_empenhado)}",
+                                    annotation_position="top right")
+                
+                st.plotly_chart(fig_emp_pago, width='stretch')
+                
+                # Adicionar métricas complementares
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("% Pago", formatar_percentual(perc_pago))
+                with col_b:
+                    st.metric("% A Pagar", formatar_percentual(perc_a_pagar))
+            else:
+                st.info("Sem dados de empenhos para exibir")
+        
+        # Tabela resumo
+        st.subheader("📋 Resumo Detalhado por Ano")
+        
+        resumo_ano = df_filtered.groupby('Ano').agg({
             'Limite': 'sum',
+            'Pré-empenhado': 'sum',
             'Empenhado': 'sum',
             'Valor Empenhos Pagos': 'sum'
         }).reset_index()
         
-        fig_evolucao = go.Figure()
-        fig_evolucao.add_trace(go.Bar(
-            name='Limite',
-            x=evolucao_ano['Ano'],
-            y=evolucao_ano['Limite'],
-            marker_color='lightblue'
-        ))
-        fig_evolucao.add_trace(go.Bar(
-            name='Empenhado',
-            x=evolucao_ano['Ano'],
-            y=evolucao_ano['Empenhado'],
-            marker_color='#0068c9'
-        ))
-        fig_evolucao.add_trace(go.Bar(
-            name='Pago',
-            x=evolucao_ano['Ano'],
-            y=evolucao_ano['Valor Empenhos Pagos'],
-            marker_color='#28a745'
-        ))
-        
-        fig_evolucao.update_layout(
-            title="Evolução Anual dos Valores",
-            xaxis_title="Ano",
-            yaxis_title="Valor (R$)",
-            barmode='group',
-            height=400
-        )
-        
-        st.plotly_chart(fig_evolucao, use_container_width=True)
-    
-    with col2:
-        # Distribuição do orçamento - apenas valores positivos
-        valores_dist = {
-            'Empenhado': max(0, valor_empenhado),
-            'Pago': max(0, valor_pago),
-            'A Pagar': max(0, valor_a_pagar)
-        }
-        
-        # Filtrar apenas valores > 0
-        valores_dist = {k: v for k, v in valores_dist.items() if v > 0}
-        
-        if valores_dist:
-            fig_dist = go.Figure(data=[go.Pie(
-                labels=list(valores_dist.keys()),
-                values=list(valores_dist.values()),
-                hole=0.4,
-                marker=dict(colors=['#0068c9', '#28a745', '#ffc107']),
-                textinfo='label+percent',
-                textposition='outside'
-            )])
-            
-            fig_dist.update_layout(
-                title="Distribuição dos Empenhos",
-                height=400,
-                showlegend=True
-            )
-            
-            st.plotly_chart(fig_dist, use_container_width=True)
-        else:
-            st.info("Sem dados para exibir no gráfico de distribuição")
-    
-    # Tabela resumo
-    st.subheader("📋 Resumo Detalhado por Ano")
-    
-    resumo_ano = df_filtered.groupby('Ano').agg({
-        'Limite': 'sum',
-        'Pré-empenhado': 'sum',
-        'Empenhado': 'sum',
-        'Valor Empenhos Pagos': 'sum'
-    }).reset_index()
-    
-    resumo_ano['Disponível'] = (resumo_ano['Limite'] - 
-                                 resumo_ano['Pré-empenhado'] - 
-                                 resumo_ano['Empenhado'])
-    resumo_ano['A Pagar'] = resumo_ano['Empenhado'] - resumo_ano['Valor Empenhos Pagos']
-    resumo_ano['% Execução'] = resumo_ano.apply(
-        lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0,
-        axis=1
-    )
-    
-    # Formatar valores
-    resumo_display = resumo_ano.copy()
-    for col in ['Limite', 'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos', 'Disponível', 'A Pagar']:
-        resumo_display[col] = resumo_display[col].apply(formatar_real)
-    resumo_display['% Execução'] = resumo_display['% Execução'].apply(formatar_percentual)
-    
-    st.dataframe(resumo_display, use_container_width=True)
-
-# ==================== ABA 5: ANÁLISE POR GESTORES ====================
-with tab5:
-    st.header("Perfil dos Gestores")
-    
-    # FILTROS EDITÁVEIS NESTA ABA
-    col1_f, col2_f, col3_f = st.columns(3)
-    
-    with col1_f:
-        ano_gest = st.multiselect("Ano", options=anos_disponiveis, 
-                                  default=ano_selecionado if ano_selecionado else [], key="ano_gest")
-    
-    with col2_f:
-        gestor_gest = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
-                                     default=gestor_selecionado if gestor_selecionado else [], key="gestor_gest")
-    
-    with col3_f:
-        centro_gest = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
-                                     default=centro_selecionado if centro_selecionado else [], key="centro_gest")
-    
-    # Aplicar filtros locais
-    df_gestores = df_resumo.copy()
-    
-    if ano_gest:
-        df_gestores = df_gestores[df_gestores['Ano'].isin(ano_gest)]
-    
-    if gestor_gest and 'Todos' not in gestor_gest:
-        df_gestores = df_gestores[df_gestores['Gestor(a)'].isin(gestor_gest)]
-    
-    if centro_gest and 'Todos' not in centro_gest:
-        df_gestores = df_gestores[df_gestores['Centro de Custo'].isin(centro_gest)]
-    
-    df_gestores = df_gestores[df_gestores['Gestor(a)'] != 'Não informado'].copy()
-    
-    st.markdown("---")
-    
-    if len(df_gestores) == 0:
-        st.warning("Não há dados de gestores para os filtros selecionados.")
-    else:
-        # Métricas por gestor
-        gestores_agg = df_gestores.groupby('Gestor(a)').agg({
-            'Limite': 'sum',
-            'Empenhado': 'sum',
-            'Valor Empenhos Pagos': 'sum',
-            'Pré-empenhado': 'sum'
-        }).reset_index()
-        
-        gestores_agg['Disponível'] = (gestores_agg['Limite'] - 
-                                      gestores_agg['Pré-empenhado'] - 
-                                      gestores_agg['Empenhado'])
-        gestores_agg['% Execução'] = gestores_agg.apply(
+        resumo_ano['Disponível'] = (resumo_ano['Limite'] - 
+                                    resumo_ano['Pré-empenhado'] - 
+                                    resumo_ano['Empenhado'])
+        resumo_ano['A Pagar'] = resumo_ano['Empenhado'] - resumo_ano['Valor Empenhos Pagos']
+        resumo_ano['% Execução'] = resumo_ano.apply(
             lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0,
             axis=1
         )
         
-        # KPIs resumo
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Gestores", len(gestores_agg))
-        with col2:
-            st.metric("Total Empenhado", formatar_real(gestores_agg['Empenhado'].sum()))
-        with col3:
-            st.metric("Total Pago", formatar_real(gestores_agg['Valor Empenhos Pagos'].sum()))
-        with col4:
-            st.metric("% Execução Média", formatar_percentual(gestores_agg['% Execução'].mean()))
+        # Formatar valores
+        resumo_display = resumo_ano.copy()
+        for col in ['Limite', 'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos', 'Disponível', 'A Pagar']:
+            resumo_display[col] = resumo_display[col].apply(formatar_real)
+        resumo_display['% Execução'] = resumo_display['% Execução'].apply(formatar_percentual)
         
-        st.markdown("---")
+        st.dataframe(resumo_display, width='stretch')
+    with subtab2_fin:
+        st.header("Perfil dos Gestores")
         
-        # Top 10 gestores por execução
-        st.subheader("🏆 Top 10 Gestores por Valor Empenhado")
-        
-        top_gestores = gestores_agg.nlargest(10, 'Empenhado')
-        
-        fig_top_gestores = go.Figure()
-        fig_top_gestores.add_trace(go.Bar(
-            x=top_gestores['Empenhado'],
-            y=top_gestores['Gestor(a)'],
-            orientation='h',
-            marker_color='#0068c9',
-            text=top_gestores['Empenhado'].apply(lambda x: formatar_real(x)),
-            textposition='auto'
-        ))
-        
-        fig_top_gestores.update_layout(
-            title="Top 10 Gestores - Valor Empenhado",
-            xaxis_title="Valor (R$)",
-            yaxis_title="",
-            height=500,
-            yaxis={'categoryorder':'total ascending'}
-        )
-        
-        st.plotly_chart(fig_top_gestores, use_container_width=True)
-        
-        # Gráficos comparativos
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # % Execução dos gestores - CORRIGIDO (não vazio mais)
-            st.subheader("📊 Top 15 Gestores - % Execução")
-            top_exec = gestores_agg.nlargest(15, '% Execução')
-            
-            fig_exec = go.Figure()
-            fig_exec.add_trace(go.Bar(
-                x=top_exec['% Execução'],
-                y=top_exec['Gestor(a)'],
-                orientation='h',
-                marker_color='#17a2b8',
-                text=top_exec['% Execução'].apply(formatar_percentual),
-                textposition='auto'
-            ))
-            
-            fig_exec.update_layout(
-                xaxis_title="% Execução",
-                yaxis_title="",
-                height=500,
-                yaxis={'categoryorder':'total ascending'}
-            )
-            
-            st.plotly_chart(fig_exec, use_container_width=True)
-        
-        with col2:
-            # Empenhado vs Pago - EIXOS TROCADOS (Y=Gestor, X=Valor)
-            st.subheader("💰 Top 15 Gestores - Empenhado vs Pago")
-            top_gestores_pag = gestores_agg.nlargest(15, 'Empenhado')
-            
-            fig_emp_pago = go.Figure()
-            fig_emp_pago.add_trace(go.Bar(
-                name='Empenhado',
-                y=top_gestores_pag['Gestor(a)'],
-                x=top_gestores_pag['Empenhado'],
-                orientation='h',
-                marker_color='#0068c9'
-            ))
-            fig_emp_pago.add_trace(go.Bar(
-                name='Pago',
-                y=top_gestores_pag['Gestor(a)'],
-                x=top_gestores_pag['Valor Empenhos Pagos'],
-                orientation='h',
-                marker_color='#28a745'
-            ))
-            
-            fig_emp_pago.update_layout(
-                barmode='group',
-                height=500,
-                xaxis_title="Valor (R$)",
-                yaxis_title="",
-                yaxis={'categoryorder':'total ascending'}
-            )
-            
-            st.plotly_chart(fig_emp_pago, use_container_width=True)
-        
-        # Mais análises
-        st.markdown("---")
-        st.subheader("📈 Análises Adicionais")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Distribuição de limites
-            st.markdown("#### Distribuição de Limites por Gestor")
-            top_limites = gestores_agg.nlargest(10, 'Limite')
-            
-            fig_limites = go.Figure(data=[go.Pie(
-                labels=top_limites['Gestor(a)'],
-                values=top_limites['Limite'],
-                hole=0.4
-            )])
-            
-            fig_limites.update_layout(height=400)
-            st.plotly_chart(fig_limites, use_container_width=True)
-        
-        with col2:
-            # Taxa de pagamento
-            st.markdown("#### Taxa de Pagamento por Gestor")
-            gestores_agg['Taxa Pagamento'] = gestores_agg.apply(
-                lambda row: (row['Valor Empenhos Pagos'] / row['Empenhado'] * 100) if row['Empenhado'] > 0 else 0,
-                axis=1
-            )
-            top_pagamento = gestores_agg.nlargest(10, 'Taxa Pagamento')
-            
-            fig_taxa = go.Figure()
-            fig_taxa.add_trace(go.Bar(
-                x=top_pagamento['Taxa Pagamento'],
-                y=top_pagamento['Gestor(a)'],
-                orientation='h',
-                marker_color='#28a745',
-                text=top_pagamento['Taxa Pagamento'].apply(formatar_percentual),
-                textposition='auto'
-            ))
-            
-            fig_taxa.update_layout(
-                xaxis_title="Taxa de Pagamento (%)",
-                yaxis_title="",
-                height=400,
-                yaxis={'categoryorder':'total ascending'}
-            )
-            
-            st.plotly_chart(fig_taxa, use_container_width=True)
-        
-        # Tabela detalhada COM COLUNA ANO
-        st.markdown("---")
-        st.subheader("📋 Tabela Detalhada por Gestor e Ano")
-        
-        # Agrupar por Ano E Gestor
-        gestores_ano_agg = df_gestores.groupby(['Ano', 'Gestor(a)']).agg({
-            'Limite': 'sum',
-            'Empenhado': 'sum',
-            'Valor Empenhos Pagos': 'sum',
-            'Pré-empenhado': 'sum'
-        }).reset_index()
-        
-        gestores_ano_agg['Disponível'] = (gestores_ano_agg['Limite'] - 
-                                          gestores_ano_agg['Pré-empenhado'] - 
-                                          gestores_ano_agg['Empenhado'])
-        gestores_ano_agg['% Execução'] = gestores_ano_agg.apply(
-            lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0,
-            axis=1
-        )
-        
-        gestores_display = gestores_ano_agg.copy()
-        for col in ['Limite', 'Empenhado', 'Valor Empenhos Pagos', 'Pré-empenhado', 'Disponível']:
-            gestores_display[col] = gestores_display[col].apply(formatar_real)
-        gestores_display['% Execução'] = gestores_display['% Execução'].apply(formatar_percentual)
-        
-        st.dataframe(gestores_display, use_container_width=True, height=400)
-
-# ==================== ABA 6: ANÁLISE POR CENTRO DE CUSTOS ====================
-with tab6:
-    st.header("Análise por Centro de Custos")
-    
-    # FILTROS EDITÁVEIS NESTA ABA
-    col1_f, col2_f, col3_f = st.columns(3)
-    
-    with col1_f:
-        ano_centro = st.multiselect("Ano", options=anos_disponiveis, 
-                                    default=ano_selecionado if ano_selecionado else [], key="ano_centro")
-    
-    with col2_f:
-        gestor_centro = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
-                                       default=gestor_selecionado if gestor_selecionado else [], key="gestor_centro")
-    
-    with col3_f:
-        centro_centro = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
-                                       default=centro_selecionado if centro_selecionado else [], key="centro_centro")
-    
-    # Aplicar filtros locais
-    df_centros = df_resumo.copy()
-    
-    if ano_centro:
-        df_centros = df_centros[df_centros['Ano'].isin(ano_centro)]
-    
-    if gestor_centro and 'Todos' not in gestor_centro:
-        df_centros = df_centros[df_centros['Gestor(a)'].isin(gestor_centro)]
-    
-    if centro_centro and 'Todos' not in centro_centro:
-        df_centros = df_centros[df_centros['Centro de Custo'].isin(centro_centro)]
-    
-    df_centros = df_centros[df_centros['Centro de Custo'] != 'Não informado'].copy()
-    
-    st.markdown("---")
-    
-    if len(df_centros) == 0:
-        st.warning("Não há dados de centros de custo para os filtros selecionados.")
-    else:
-        # Métricas por centro de custo
-        centros_agg = df_centros.groupby('Centro de Custo').agg({
-            'Limite': 'sum',
-            'Empenhado': 'sum',
-            'Valor Empenhos Pagos': 'sum',
-            'Pré-empenhado': 'sum'
-        }).reset_index()
-        
-        centros_agg['Disponível'] = (centros_agg['Limite'] - 
-                                     centros_agg['Pré-empenhado'] - 
-                                     centros_agg['Empenhado'])
-        centros_agg['A Pagar'] = centros_agg['Empenhado'] - centros_agg['Valor Empenhos Pagos']
-        centros_agg['% Execução'] = (centros_agg['Empenhado'] / 
-                                    centros_agg['Limite'] * 100)
-        
-        # Top 20 centros
-        st.subheader("🏆 Top 20 Centros de Custo por Valor Empenhado")
-        
-        top_centros = centros_agg.nlargest(20, 'Empenhado')
-        
-        fig_top_centros = go.Figure()
-        fig_top_centros.add_trace(go.Bar(
-            x=top_centros['Empenhado'],
-            y=top_centros['Centro de Custo'],
-            orientation='h',
-            marker_color='#0068c9',
-            text=top_centros['Empenhado'].apply(lambda x: f'R$ {x/1e6:.1f}M'),
-            textposition='auto'
-        ))
-        
-        fig_top_centros.update_layout(
-            height=700,
-            xaxis_title="Valor Empenhado (R$)",
-            yaxis_title="",
-            yaxis={'categoryorder':'total ascending'}
-        )
-        
-        st.plotly_chart(fig_top_centros, use_container_width=True)
-        
-        # Análises comparativas
-        st.subheader("📊 Análises Comparativas")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Centros com maior valor a pagar
-            top_a_pagar = centros_agg.nlargest(15, 'A Pagar')
-            
-            fig_a_pagar = go.Figure()
-            fig_a_pagar.add_trace(go.Bar(
-                x=top_a_pagar['A Pagar'],
-                y=top_a_pagar['Centro de Custo'],
-                orientation='h',
-                marker_color='#ffc107',
-                text=top_a_pagar['A Pagar'].apply(lambda x: f'R$ {x/1000:.0f}K'),
-                textposition='auto'
-            ))
-            
-            fig_a_pagar.update_layout(
-                title="Top 15 Centros - Maior Valor a Pagar",
-                height=500,
-                xaxis_title="Valor a Pagar (R$)",
-                yaxis_title="",
-                yaxis={'categoryorder':'total ascending'}
-            )
-            
-            st.plotly_chart(fig_a_pagar, use_container_width=True)
-        
-        with col2:
-            # Distribuição de limites
-            top_limites = centros_agg.nlargest(10, 'Limite')
-            
-            fig_limites = go.Figure(data=[go.Pie(
-                labels=top_limites['Centro de Custo'],
-                values=top_limites['Limite'],
-                hole=0.4
-            )])
-            
-            fig_limites.update_layout(
-                title="Top 10 Centros - Distribuição de Limites",
-                height=500
-            )
-            
-            st.plotly_chart(fig_limites, use_container_width=True)
-        
-        # Tabela detalhada
-        st.subheader("📋 Tabela Detalhada por Centro de Custo")
-        
-        # Filtro de busca
-        busca_centro = st.text_input("🔍 Buscar Centro de Custo:", "")
-        
-        centros_display = centros_agg.copy()
-        if busca_centro:
-            centros_display = centros_display[
-                centros_display['Centro de Custo'].str.contains(busca_centro, case=False, na=False)
-            ]
-        
-        for col in ['Limite', 'Empenhado', 
-                    'Valor Empenhos Pagos', 'Pré-empenhado', 
-                    'Disponível', 'A Pagar']:
-            centros_display[col] = centros_display[col].apply(lambda x: f'R$ {x:,.2f}')
-        centros_display['% Execução'] = centros_display['% Execução'].apply(lambda x: f'{x:.1f}%')
-        
-        centros_display.columns = ['Centro de Custo', 'Limite', 'Empenhado', 'Pago', 
-                                  'Pré-Empenhado', 'Disponível', 'A Pagar', '% Execução']
-        
-        st.dataframe(centros_display, use_container_width=True)
-
-# ==================== ABA 7: EMPENHOS DETALHADOS ====================
-with tab7:
-    st.header("Empenhos Detalhados")
-    
-    if len(df_empenhos) == 0:
-        st.warning("Dados de empenhos não disponíveis.")
-    else:
-        # FILTROS EDITÁVEIS
+        # FILTROS EDITÁVEIS NESTA ABA
         col1_f, col2_f, col3_f = st.columns(3)
         
         with col1_f:
-            if 'Ano' in df_empenhos.columns:
-                anos_emp = sorted(df_empenhos['Ano'].dropna().unique().tolist())
-                ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_emp")
+            ano_gest = st.multiselect("Ano", options=anos_disponiveis, 
+                                    default=ano_selecionado if ano_selecionado else [], key="ano_gest")
         
         with col2_f:
-            if 'Favorecido' in df_empenhos.columns:
-                # Não mostrar "Não informado" nas opções
-                favorecidos = sorted([f for f in df_empenhos['Favorecido'].unique() if f != 'Não informado'][:100])
-                favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_emp")
+            gestor_gest = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
+                                        default=gestor_selecionado if gestor_selecionado else [], key="gestor_gest")
         
         with col3_f:
-            if 'Grupo' in df_empenhos.columns:
-                grupos = sorted(df_empenhos['Grupo'].dropna().unique().tolist())
-                grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_emp")
+            centro_gest = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
+                                        default=centro_selecionado if centro_selecionado else [], key="centro_gest")
         
-        # Aplicar filtros
-        df_empenhos_filtered = df_empenhos.copy()
+        # Aplicar filtros locais
+        df_gestores = df_resumo.copy()
         
-        if 'Ano' in df_empenhos.columns and ano_emp:
-            df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Ano'].isin(ano_emp)]
+        if ano_gest:
+            df_gestores = df_gestores[df_gestores['Ano'].isin(ano_gest)]
         
-        if 'Favorecido' in df_empenhos.columns and favorecido_emp != 'Todos':
-            df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Favorecido'] == favorecido_emp]
+        if gestor_gest and 'Todos' not in gestor_gest:
+            df_gestores = df_gestores[df_gestores['Gestor(a)'].isin(gestor_gest)]
         
-        if 'Grupo' in df_empenhos.columns and grupo_emp:
-            df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Grupo'].isin(grupo_emp)]
+        if centro_gest and 'Todos' not in centro_gest:
+            df_gestores = df_gestores[df_gestores['Centro de Custo'].isin(centro_gest)]
         
-        st.markdown("---")
-        
-        # KPIs
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Empenhos", f"{len(df_empenhos_filtered):,}")
-        with col2:
-            if 'Valor Empenhado' in df_empenhos_filtered.columns:
-                st.metric("Valor Empenhado", formatar_real(df_empenhos_filtered['Valor Empenhado'].sum()))
-        with col3:
-            if 'Valor Pago' in df_empenhos_filtered.columns:
-                st.metric("Valor Pago", formatar_real(df_empenhos_filtered['Valor Pago'].sum()))
-        with col4:
-            if 'R$ a pagar' in df_empenhos_filtered.columns:
-                st.metric("A Pagar", formatar_real(df_empenhos_filtered['R$ a pagar'].sum()))
+        df_gestores = df_gestores[df_gestores['Gestor(a)'] != 'Não informado'].copy()
         
         st.markdown("---")
         
-        # Análises gráficas
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top 15 Favorecidos - CORRIGIDO
-            if 'Favorecido' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns:
-                st.subheader("👥 Top 15 Favorecidos")
-                favorecidos_agg = df_empenhos_filtered.groupby('Favorecido')['Valor Empenhado'].sum().nlargest(15)
-                
-                fig_fav = go.Figure()
-                fig_fav.add_trace(go.Bar(
-                    x=favorecidos_agg.values,
-                    y=favorecidos_agg.index,
-                    orientation='h',
-                    marker_color='#0068c9',
-                    text=[formatar_real(v) for v in favorecidos_agg.values],
-                    textposition='auto'
-                ))
-                
-                fig_fav.update_layout(
-                    xaxis_title="Valor Empenhado (R$)",
-                    yaxis_title="",
-                    height=500,
-                    yaxis={'categoryorder':'total ascending'}
-                )
-                
-                st.plotly_chart(fig_fav, use_container_width=True)
-        
-        with col2:
-            # Por Grupo de Despesa
-            if 'Grupo' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns:
-                st.subheader("📊 Por Grupo de Despesa")
-                grupo_agg = df_empenhos_filtered.groupby('Grupo')['Valor Empenhado'].sum().nlargest(10)
-                
-                fig_grupo = go.Figure(data=[go.Pie(
-                    labels=grupo_agg.index,
-                    values=grupo_agg.values,
-                    hole=0.4,
-                    textinfo='label+percent',
-                    textposition='outside'
-                )])
-                
-                fig_grupo.update_layout(height=500, showlegend=False)
-                st.plotly_chart(fig_grupo, use_container_width=True)
-        
-        # Gráfico de Natureza - COMPLETAMENTE REFORMULADO
-        st.markdown("---")
-        st.subheader("💰 Por Natureza de Despesa")
-        
-        if 'Natureza' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns:
-            natureza_agg = df_empenhos_filtered.groupby('Natureza')['Valor Empenhado'].sum().nlargest(20)
+        if len(df_gestores) == 0:
+            st.warning("Não há dados de gestores para os filtros selecionados.")
+        else:
+            # Métricas por gestor
+            gestores_agg = df_gestores.groupby('Gestor(a)').agg({
+                'Limite': 'sum',
+                'Empenhado': 'sum',
+                'Valor Empenhos Pagos': 'sum',
+                'Pré-empenhado': 'sum'
+            }).reset_index()
             
-            if len(natureza_agg) > 0:
-                fig_natureza = go.Figure()
-                fig_natureza.add_trace(go.Bar(
-                    x=natureza_agg.values,
-                    y=natureza_agg.index,
-                    orientation='h',
-                    marker_color='#17a2b8',
-                    text=[formatar_real(v) for v in natureza_agg.values],
-                    textposition='auto'
-                ))
-                
-                fig_natureza.update_layout(
-                    title="Top 20 Naturezas de Despesa",
-                    xaxis_title="Valor Empenhado (R$)",
-                    yaxis_title="Natureza",
-                    height=700,
-                    yaxis={'categoryorder':'total ascending'}
-                )
-                
-                st.plotly_chart(fig_natureza, use_container_width=True)
-            else:
-                st.info("Sem dados de natureza para exibir")
-        
-        # Análise temporal
-        if 'Data Emissão' in df_empenhos_filtered.columns:
+            gestores_agg['Disponível'] = (gestores_agg['Limite'] - 
+                                        gestores_agg['Pré-empenhado'] - 
+                                        gestores_agg['Empenhado'])
+            gestores_agg['% Execução'] = gestores_agg.apply(
+                lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0,
+                axis=1
+            )
+            
+            # KPIs resumo
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Gestores", len(gestores_agg))
+            with col2:
+                st.metric("Total Empenhado", formatar_real(gestores_agg['Empenhado'].sum()))
+            with col3:
+                st.metric("Total Pago", formatar_real(gestores_agg['Valor Empenhos Pagos'].sum()))
+            with col4:
+                st.metric("% Execução Média", formatar_percentual(gestores_agg['% Execução'].mean()))
+            
             st.markdown("---")
-            st.subheader("📅 Evolução Temporal")
             
-            df_temp = df_empenhos_filtered.copy()
-            df_temp['Data Emissão'] = pd.to_datetime(df_temp['Data Emissão'], errors='coerce')
-            df_temp = df_temp.dropna(subset=['Data Emissão'])
+            # Top 10 gestores por execução
+            st.subheader("🏆 Top 10 Gestores por Valor Empenhado")
             
-            if len(df_temp) > 0:
-                df_temp['Mês/Ano'] = df_temp['Data Emissão'].dt.to_period('M').astype(str)
-                temporal_agg = df_temp.groupby('Mês/Ano')['Valor Empenhado'].sum().tail(12)
-                
-                fig_temp = go.Figure()
-                fig_temp.add_trace(go.Scatter(
-                    x=temporal_agg.index,
-                    y=temporal_agg.values,
-                    mode='lines+markers',
-                    name='Valor Empenhado',
-                    line=dict(color='#0068c9', width=3),
-                    marker=dict(size=8)
-                ))
-                
-                fig_temp.update_layout(
-                    title="Evolução dos Empenhos (Últimos 12 meses)",
-                    xaxis_title="Mês/Ano",
-                    yaxis_title="Valor (R$)",
-                    height=400
-                )
-                
-                st.plotly_chart(fig_temp, use_container_width=True)
-        
-        # Tabela detalhada
-        st.markdown("---")
-        st.subheader("📋 Tabela Detalhada de Empenhos")
-        
-        busca_emp = st.text_input("🔍 Buscar (Empenho, Favorecido, Processo):", "", key="busca_emp")
-        
-        df_emp_display = df_empenhos_filtered.copy()
-        if busca_emp:
-            mask = False
-            for col in ['Empenho', 'Favorecido', 'Processo']:
-                if col in df_emp_display.columns:
-                    mask = mask | df_emp_display[col].astype(str).str.contains(busca_emp, case=False, na=False)
-            df_emp_display = df_emp_display[mask]
-        
-        # Mostrar primeiros 100 registros
-        df_emp_display = df_emp_display.head(100)
-        
-        # Formatar valores monetários
-        for col in ['Valor Empenhado', 'Valor Pago', 'R$ a pagar']:
-            if col in df_emp_display.columns:
-                df_emp_display[col] = df_emp_display[col].apply(formatar_real)
-        
-        st.dataframe(df_emp_display, use_container_width=True, height=400)
-        st.info(f"📊 Exibindo {len(df_emp_display):,} de {len(df_empenhos_filtered):,} registros (limite: 100)")
-
-# ==================== ABA 8: PRÉ-EMPENHOS ====================
-with tab8:
-    st.header("Pré-Empenhos")
-    
-    if len(df_pre_empenhos) == 0:
-        st.warning("Dados de pré-empenhos não disponíveis.")
-    else:
-        # Filtros
-        col1_f, col2_f = st.columns(2)
-        
-        with col1_f:
-            if 'Ano' in df_pre_empenhos.columns:
-                anos_pre = sorted(df_pre_empenhos['Ano'].dropna().unique().tolist())
-                ano_pre = st.multiselect("Ano", options=anos_pre, default=[], key="ano_pre")
-        
-        with col2_f:
-            if 'Favorecido' in df_pre_empenhos.columns:
-                favorecidos_pre = sorted(df_pre_empenhos['Favorecido'].dropna().unique().tolist()[:100])
-                favorecido_pre = st.selectbox("Favorecido", options=['Todos'] + favorecidos_pre, key="fav_pre")
-        
-        # Aplicar filtros
-        df_pre_filtered = df_pre_empenhos.copy()
-        
-        if 'Ano' in df_pre_empenhos.columns and ano_pre:
-            df_pre_filtered = df_pre_filtered[df_pre_filtered['Ano'].isin(ano_pre)]
-        
-        if 'Favorecido' in df_pre_empenhos.columns and favorecido_pre != 'Todos':
-            df_pre_filtered = df_pre_filtered[df_pre_filtered['Favorecido'] == favorecido_pre]
-        
-        st.markdown("---")
-        
-        # KPIs
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Pré-Empenhos", f"{len(df_pre_filtered):,}")
-        with col2:
-            if 'Valor Pré-Empenhado' in df_pre_filtered.columns:
-                st.metric("Valor Total", formatar_real(df_pre_filtered['Valor Pré-Empenhado'].sum()))
-        with col3:
-            if 'Ano' in df_pre_filtered.columns:
-                st.metric("Anos Cobertos", df_pre_filtered['Ano'].nunique())
-        
-        st.markdown("---")
-        
-        # Gráficos
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top Favorecidos
-            if 'Favorecido' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns:
-                st.subheader("👥 Top 15 Favorecidos")
-                fav_agg = df_pre_filtered.groupby('Favorecido')['Valor Pré-Empenhado'].sum().nlargest(15)
-                
-                fig_fav_pre = go.Figure()
-                fig_fav_pre.add_trace(go.Bar(
-                    x=fav_agg.values,
-                    y=fav_agg.index,
-                    orientation='h',
-                    marker_color='#ffc107',
-                    text=[formatar_real(v) for v in fav_agg.values],
-                    textposition='auto'
-                ))
-                
-                fig_fav_pre.update_layout(
-                    xaxis_title="Valor (R$)",
-                    yaxis_title="",
-                    height=500,
-                    yaxis={'categoryorder':'total ascending'}
-                )
-                
-                st.plotly_chart(fig_fav_pre, use_container_width=True)
-        
-        with col2:
-            # Gráfico de Grupo de Despesas - MELHORADO
-            if 'Grupo Despesa' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns:
-                st.subheader("📊 Por Grupo de Despesa")
-                grupo_pre_agg = df_pre_filtered.groupby('Grupo Despesa')['Valor Pré-Empenhado'].sum().nlargest(15)
-                
-                if len(grupo_pre_agg) > 0:
-                    fig_grupo_pre = go.Figure()
-                    fig_grupo_pre.add_trace(go.Bar(
-                        x=grupo_pre_agg.values,
-                        y=grupo_pre_agg.index,
-                        orientation='h',
-                        marker_color='#17a2b8',
-                        text=[formatar_real(v) for v in grupo_pre_agg.values],
-                        textposition='auto'
-                    ))
-                    
-                    fig_grupo_pre.update_layout(
-                        xaxis_title="Valor (R$)",
-                        yaxis_title="Grupo de Despesa",
-                        height=500,
-                        yaxis={'categoryorder':'total ascending'}
-                    )
-                    
-                    st.plotly_chart(fig_grupo_pre, use_container_width=True)
-                else:
-                    st.info("Sem dados de grupo de despesa")
-        
-        # Evolução temporal
-        if 'Ano' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns:
-            st.markdown("---")
-            st.subheader("📈 Evolução Anual")
+            top_gestores = gestores_agg.nlargest(10, 'Empenhado')
             
-            ano_agg = df_pre_filtered.groupby('Ano')['Valor Pré-Empenhado'].sum()
-            
-            fig_ano_pre = go.Figure()
-            fig_ano_pre.add_trace(go.Bar(
-                x=ano_agg.index,
-                y=ano_agg.values,
-                marker_color='#ffc107',
-                text=[formatar_real(v) for v in ano_agg.values],
+            fig_top_gestores = go.Figure()
+            fig_top_gestores.add_trace(go.Bar(
+                x=top_gestores['Empenhado'],
+                y=top_gestores['Gestor(a)'],
+                orientation='h',
+                marker_color='#0068c9',
+                text=top_gestores['Empenhado'].apply(lambda x: formatar_real(x)),
                 textposition='auto'
             ))
             
-            fig_ano_pre.update_layout(
-                title="Pré-Empenhos por Ano",
-                xaxis_title="Ano",
-                yaxis_title="Valor (R$)",
-                height=400
+            fig_top_gestores.update_layout(
+                title="Top 10 Gestores - Valor Empenhado",
+                xaxis_title="Valor (R$)",
+                yaxis_title="",
+                height=500,
+                yaxis={'categoryorder':'total ascending'}
             )
             
-            st.plotly_chart(fig_ano_pre, use_container_width=True)
-        
-        # Tabela
-        st.markdown("---")
-        st.subheader("📋 Tabela de Pré-Empenhos")
-        
-        busca_pre = st.text_input("🔍 Buscar:", "", key="busca_pre")
-        
-        df_pre_display = df_pre_filtered.copy()
-        if busca_pre:
-            mask = False
-            for col in ['Pré-Empenho', 'Favorecido', 'Processo']:
-                if col in df_pre_display.columns:
-                    mask = mask | df_pre_display[col].astype(str).str.contains(busca_pre, case=False, na=False)
-            df_pre_display = df_pre_display[mask]
-        
-        df_pre_display = df_pre_display.head(100)
-        
-        if 'Valor Pré-Empenhado' in df_pre_display.columns:
-            df_pre_display['Valor Pré-Empenhado'] = df_pre_display['Valor Pré-Empenhado'].apply(formatar_real)
-        
-        st.dataframe(df_pre_display, use_container_width=True, height=400)
-
-# ==================== ABA 9: RESTOS A PAGAR ====================
-with tab9:
-    st.header("Restos a Pagar")
-    
-    if len(df_rp) == 0:
-        st.warning("Dados de restos a pagar não disponíveis.")
-    else:
-        # Filtros
-        col1_f, col2_f = st.columns(2)
-        
-        with col1_f:
-            if 'Favorecido' in df_rp.columns:
-                favorecidos_rp = sorted(df_rp['Favorecido'].dropna().unique().tolist()[:100])
-                favorecido_rp = st.selectbox("Favorecido", options=['Todos'] + favorecidos_rp, key="fav_rp")
-        
-        with col2_f:
-            if 'Grupo' in df_rp.columns:
-                grupos_rp = sorted(df_rp['Grupo'].dropna().unique().tolist())
-                grupo_rp = st.multiselect("Grupo", options=grupos_rp, default=[], key="grupo_rp")
-        
-        # Aplicar filtros
-        df_rp_filtered = df_rp.copy()
-        
-        if 'Favorecido' in df_rp.columns and favorecido_rp != 'Todos':
-            df_rp_filtered = df_rp_filtered[df_rp_filtered['Favorecido'] == favorecido_rp]
-        
-        if 'Grupo' in df_rp.columns and grupo_rp:
-            df_rp_filtered = df_rp_filtered[df_rp_filtered['Grupo'].isin(grupo_rp)]
-        
-        st.markdown("---")
-        
-        # KPIs
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            if 'RP Inscritos' in df_rp_filtered.columns:
-                st.metric("RP Inscritos", formatar_real(df_rp_filtered['RP Inscritos'].sum()))
-        with col2:
-            if 'RP Pagos' in df_rp_filtered.columns:
-                st.metric("RP Pagos", formatar_real(df_rp_filtered['RP Pagos'].sum()))
-        with col3:
-            if 'RP Cancelados' in df_rp_filtered.columns:
-                st.metric("RP Cancelados", formatar_real(df_rp_filtered['RP Cancelados'].sum()))
-        with col4:
-            if 'RP a Pagar' in df_rp_filtered.columns:
-                st.metric("RP a Pagar", formatar_real(df_rp_filtered['RP a Pagar'].sum()))
-        
-        st.markdown("---")
-        
-        # Gráficos
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Top Favorecidos
-            if 'Favorecido' in df_rp_filtered.columns and 'RP a Pagar' in df_rp_filtered.columns:
-                st.subheader("👥 Top 15 Favorecidos - RP a Pagar")
-                fav_rp_agg = df_rp_filtered.groupby('Favorecido')['RP a Pagar'].sum().nlargest(15)
+            st.plotly_chart(fig_top_gestores, width='stretch')
+            
+            # Gráficos comparativos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # % Execução dos gestores
+                st.subheader("📊 Top 15 Gestores - % Execução")
                 
-                fig_fav_rp = go.Figure()
-                fig_fav_rp.add_trace(go.Bar(
-                    x=fav_rp_agg.values,
-                    y=fav_rp_agg.index,
+                if len(gestores_agg) > 0:
+                    # Filtrar gestores com limite > 0 para cálculo correto
+                    gestores_com_limite = gestores_agg[gestores_agg['Limite'] > 0].copy()
+                    
+                    if len(gestores_com_limite) > 0:
+                        top_exec = gestores_com_limite.nlargest(15, '% Execução')
+                        
+                        if len(top_exec) > 0 and top_exec['% Execução'].sum() > 0:
+                            fig_exec = go.Figure()
+                            fig_exec.add_trace(go.Bar(
+                                x=top_exec['% Execução'],
+                                y=top_exec['Gestor(a)'],
+                                orientation='h',
+                                marker_color='#17a2b8',
+                                text=top_exec['% Execução'].apply(formatar_percentual),
+                                textposition='auto'
+                            ))
+                            
+                            fig_exec.update_layout(
+                                xaxis_title="% Execução",
+                                yaxis_title="",
+                                height=500,
+                                yaxis={'categoryorder':'total ascending'}
+                            )
+                            
+                            st.plotly_chart(fig_exec, width='stretch')
+                        else:
+                            st.info("Sem dados de execução para exibir. Verifique se há gestores com limites e empenhos definidos.")
+                    else:
+                        st.info("Sem gestores com limite definido. Selecione filtros diferentes.")
+                else:
+                    st.info("Sem dados disponíveis. Selecione filtros adequados.")
+            
+            with col2:
+                # Empenhado vs Pago - EIXOS TROCADOS (Y=Gestor, X=Valor)
+                st.subheader("💰 Top 15 Gestores - Empenhado vs Pago")
+                top_gestores_pag = gestores_agg.nlargest(15, 'Empenhado')
+                
+                fig_emp_pago = go.Figure()
+                fig_emp_pago.add_trace(go.Bar(
+                    name='Empenhado',
+                    y=top_gestores_pag['Gestor(a)'],
+                    x=top_gestores_pag['Empenhado'],
                     orientation='h',
-                    marker_color='#dc3545',
-                    text=[formatar_real(v) for v in fav_rp_agg.values],
-                    textposition='auto'
+                    marker_color='#0068c9'
+                ))
+                fig_emp_pago.add_trace(go.Bar(
+                    name='Pago',
+                    y=top_gestores_pag['Gestor(a)'],
+                    x=top_gestores_pag['Valor Empenhos Pagos'],
+                    orientation='h',
+                    marker_color='#28a745'
                 ))
                 
-                fig_fav_rp.update_layout(
+                fig_emp_pago.update_layout(
+                    barmode='group',
+                    height=500,
                     xaxis_title="Valor (R$)",
                     yaxis_title="",
-                    height=500,
                     yaxis={'categoryorder':'total ascending'}
                 )
                 
-                st.plotly_chart(fig_fav_rp, use_container_width=True)
-        
-        with col2:
-            # Gráfico de Natureza - MELHORADO
-            if 'Natureza' in df_rp_filtered.columns and 'RP a Pagar' in df_rp_filtered.columns:
-                st.subheader("💰 Por Natureza de Despesa")
-                natureza_rp_agg = df_rp_filtered.groupby('Natureza')['RP a Pagar'].sum().nlargest(15)
-                
-                if len(natureza_rp_agg) > 0:
-                    fig_nat_rp = go.Figure()
-                    fig_nat_rp.add_trace(go.Bar(
-                        x=natureza_rp_agg.values,
-                        y=natureza_rp_agg.index,
-                        orientation='h',
-                        marker_color='#6c757d',
-                        text=[formatar_real(v) for v in natureza_rp_agg.values],
-                        textposition='auto'
-                    ))
-                    
-                    fig_nat_rp.update_layout(
-                        xaxis_title="Valor (R$)",
-                        yaxis_title="Natureza",
-                        height=500,
-                        yaxis={'categoryorder':'total ascending'}
-                    )
-                    
-                    st.plotly_chart(fig_nat_rp, use_container_width=True)
-                else:
-                    st.info("Sem dados de natureza")
-        
-        # Status dos RP
-        st.markdown("---")
-        st.subheader("📊 Status dos Restos a Pagar")
-        
-        status_values = {}
-        if 'RP Inscritos' in df_rp_filtered.columns:
-            status_values['Inscritos'] = df_rp_filtered['RP Inscritos'].sum()
-        if 'RP Pagos' in df_rp_filtered.columns:
-            status_values['Pagos'] = df_rp_filtered['RP Pagos'].sum()
-        if 'RP Cancelados' in df_rp_filtered.columns:
-            status_values['Cancelados'] = df_rp_filtered['RP Cancelados'].sum()
-        if 'RP a Pagar' in df_rp_filtered.columns:
-            status_values['A Pagar'] = df_rp_filtered['RP a Pagar'].sum()
-        
-        if status_values:
-            fig_status = go.Figure(data=[go.Pie(
-                labels=list(status_values.keys()),
-                values=list(status_values.values()),
-                hole=0.4,
-                marker=dict(colors=['#17a2b8', '#28a745', '#6c757d', '#dc3545'])
-            )])
+                st.plotly_chart(fig_emp_pago, width='stretch')
             
-            fig_status.update_layout(
-                title="Distribuição dos Restos a Pagar",
-                height=400
+            # Mais análises
+            st.markdown("---")
+            st.subheader("📈 Análises Adicionais")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Distribuição de limites
+                st.markdown("#### Distribuição de Limites por Gestor")
+                
+                if len(gestores_agg) > 0:
+                    top_limites = gestores_agg.nlargest(10, 'Limite')
+                    
+                    if len(top_limites) > 0 and top_limites['Limite'].sum() > 0:
+                        fig_limites = go.Figure(data=[go.Pie(
+                            labels=top_limites['Gestor(a)'],
+                            values=top_limites['Limite'],
+                            hole=0.4
+                        )])
+                        
+                        fig_limites.update_layout(height=400)
+                        st.plotly_chart(fig_limites, width='stretch')
+                    else:
+                        st.info("Sem dados de limites para exibir. Selecione filtros adequados.")
+                else:
+                    st.info("Sem dados disponíveis. Selecione filtros adequados.")
+            
+            with col2:
+                # Taxa de pagamento
+                st.markdown("#### Taxa de Pagamento por Gestor")
+                gestores_agg['Taxa Pagamento'] = gestores_agg.apply(
+                    lambda row: (row['Valor Empenhos Pagos'] / row['Empenhado'] * 100) if row['Empenhado'] > 0 else 0,
+                    axis=1
+                )
+                top_pagamento = gestores_agg.nlargest(10, 'Taxa Pagamento')
+                
+                fig_taxa = go.Figure()
+                fig_taxa.add_trace(go.Bar(
+                    x=top_pagamento['Taxa Pagamento'],
+                    y=top_pagamento['Gestor(a)'],
+                    orientation='h',
+                    marker_color='#28a745',
+                    text=top_pagamento['Taxa Pagamento'].apply(formatar_percentual),
+                    textposition='auto'
+                ))
+                
+                fig_taxa.update_layout(
+                    xaxis_title="Taxa de Pagamento (%)",
+                    yaxis_title="",
+                    height=400,
+                    yaxis={'categoryorder':'total ascending'}
+                )
+                
+                st.plotly_chart(fig_taxa, width='stretch')
+            
+            # Tabela detalhada COM COLUNA ANO
+            st.markdown("---")
+            st.subheader("📋 Tabela Detalhada por Gestor e Ano")
+            
+            # Agrupar por Ano E Gestor
+            gestores_ano_agg = df_gestores.groupby(['Ano', 'Gestor(a)']).agg({
+                'Limite': 'sum',
+                'Empenhado': 'sum',
+                'Valor Empenhos Pagos': 'sum',
+                'Pré-empenhado': 'sum'
+            }).reset_index()
+            
+            gestores_ano_agg['Disponível'] = (gestores_ano_agg['Limite'] - 
+                                            gestores_ano_agg['Pré-empenhado'] - 
+                                            gestores_ano_agg['Empenhado'])
+            gestores_ano_agg['% Execução'] = gestores_ano_agg.apply(
+                lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0,
+                axis=1
             )
             
-            st.plotly_chart(fig_status, use_container_width=True)
+            gestores_display = gestores_ano_agg.copy()
+            for col in ['Limite', 'Empenhado', 'Valor Empenhos Pagos', 'Pré-empenhado', 'Disponível']:
+                gestores_display[col] = gestores_display[col].apply(formatar_real)
+            gestores_display['% Execução'] = gestores_display['% Execução'].apply(formatar_percentual)
+            
+            st.dataframe(gestores_display, width='stretch', height=400)
+    with subtab3_fin:
+        st.header("Análise por Centro de Custos")
         
-        # Tabela
+        # FILTROS EDITÁVEIS NESTA ABA
+        col1_f, col2_f, col3_f = st.columns(3)
+        
+        with col1_f:
+            ano_centro = st.multiselect("Ano", options=anos_disponiveis, 
+                                        default=ano_selecionado if ano_selecionado else [], key="ano_centro")
+        
+        with col2_f:
+            gestor_centro = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
+                                        default=gestor_selecionado if gestor_selecionado else [], key="gestor_centro")
+        
+        with col3_f:
+            centro_centro = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
+                                        default=centro_selecionado if centro_selecionado else [], key="centro_centro")
+        
+        # Aplicar filtros locais
+        df_centros = df_resumo.copy()
+        
+        if ano_centro:
+            df_centros = df_centros[df_centros['Ano'].isin(ano_centro)]
+        
+        if gestor_centro and 'Todos' not in gestor_centro:
+            df_centros = df_centros[df_centros['Gestor(a)'].isin(gestor_centro)]
+        
+        if centro_centro and 'Todos' not in centro_centro:
+            df_centros = df_centros[df_centros['Centro de Custo'].isin(centro_centro)]
+        
+        df_centros = df_centros[df_centros['Centro de Custo'] != 'Não informado'].copy()
+        
         st.markdown("---")
-        st.subheader("📋 Tabela de Restos a Pagar")
         
-        busca_rp = st.text_input("🔍 Buscar:", "", key="busca_rp")
-        
-        df_rp_display = df_rp_filtered.copy()
-        if busca_rp:
-            mask = False
-            for col in ['Empenho', 'Favorecido']:
-                if col in df_rp_display.columns:
-                    mask = mask | df_rp_display[col].astype(str).str.contains(busca_rp, case=False, na=False)
-            df_rp_display = df_rp_display[mask]
-        
-        df_rp_display = df_rp_display.head(100)
-        
-        for col in ['RP Inscritos', 'RP Pagos', 'RP Cancelados', 'RP Bloqueados', 'RP a Pagar']:
-            if col in df_rp_display.columns:
-                df_rp_display[col] = df_rp_display[col].apply(formatar_real)
-        
-        st.dataframe(df_rp_display, use_container_width=True, height=400)
+        if len(df_centros) == 0:
+            st.warning("Não há dados de centros de custo para os filtros selecionados.")
+        else:
+            # Métricas por centro de custo
+            centros_agg = df_centros.groupby('Centro de Custo').agg({
+                'Limite': 'sum',
+                'Empenhado': 'sum',
+                'Valor Empenhos Pagos': 'sum',
+                'Pré-empenhado': 'sum'
+            }).reset_index()
+            
+            centros_agg['Disponível'] = (centros_agg['Limite'] - 
+                                        centros_agg['Pré-empenhado'] - 
+                                        centros_agg['Empenhado'])
+            centros_agg['A Pagar'] = centros_agg['Empenhado'] - centros_agg['Valor Empenhos Pagos']
+            centros_agg['% Execução'] = (centros_agg['Empenhado'] / 
+                                        centros_agg['Limite'] * 100)
+            
+            # Top 20 centros
+            st.subheader("🏆 Top 20 Centros de Custo por Valor Empenhado")
+            
+            top_centros = centros_agg.nlargest(20, 'Empenhado')
+            
+            fig_top_centros = go.Figure()
+            fig_top_centros.add_trace(go.Bar(
+                x=top_centros['Empenhado'],
+                y=top_centros['Centro de Custo'],
+                orientation='h',
+                marker_color='#0068c9',
+                text=top_centros['Empenhado'].apply(lambda x: f'R$ {x/1e6:.1f}M'),
+                textposition='auto'
+            ))
+            
+            fig_top_centros.update_layout(
+                height=700,
+                xaxis_title="Valor Empenhado (R$)",
+                yaxis_title="",
+                yaxis={'categoryorder':'total ascending'}
+            )
+            
+            st.plotly_chart(fig_top_centros, width='stretch')
+            
+            # Análises comparativas
+            st.subheader("📊 Análises Comparativas")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Centros com maior valor a pagar
+                top_a_pagar = centros_agg.nlargest(15, 'A Pagar')
+                
+                fig_a_pagar = go.Figure()
+                fig_a_pagar.add_trace(go.Bar(
+                    x=top_a_pagar['A Pagar'],
+                    y=top_a_pagar['Centro de Custo'],
+                    orientation='h',
+                    marker_color='#ffc107',
+                    text=top_a_pagar['A Pagar'].apply(lambda x: f'R$ {x/1000:.0f}K'),
+                    textposition='auto'
+                ))
+                
+                fig_a_pagar.update_layout(
+                    title="Top 15 Centros - Maior Valor a Pagar",
+                    height=500,
+                    xaxis_title="Valor a Pagar (R$)",
+                    yaxis_title="",
+                    yaxis={'categoryorder':'total ascending'}
+                )
+                
+                st.plotly_chart(fig_a_pagar, width='stretch')
+            
+            with col2:
+                # Distribuição de limites - VALIDADO
+                if len(centros_agg) > 0:
+                    top_limites = centros_agg.nlargest(10, 'Limite')
+                    
+                    if len(top_limites) > 0 and top_limites['Limite'].sum() > 0:
+                        fig_limites = go.Figure(data=[go.Pie(
+                            labels=top_limites['Centro de Custo'],
+                            values=top_limites['Limite'],
+                            hole=0.4
+                        )])
+                        
+                        fig_limites.update_layout(
+                            title="Top 10 Centros - Distribuição de Limites",
+                            height=500
+                        )
+                        
+                        st.plotly_chart(fig_limites, width='stretch')
+                    else:
+                        st.info("Sem dados de limites para exibir. Selecione filtros adequados.")
+                else:
+                    st.info("Sem dados disponíveis. Selecione filtros adequados.")
+            
+            # Tabela detalhada
+            st.subheader("📋 Tabela Detalhada por Centro de Custo")
+            
+            # Filtro de busca
+            busca_centro = st.text_input("🔍 Buscar Centro de Custo:", "")
+            
+            centros_display = centros_agg.copy()
+            if busca_centro:
+                centros_display = centros_display[
+                    centros_display['Centro de Custo'].str.contains(busca_centro, case=False, na=False)
+                ]
+            
+            for col in ['Limite', 'Empenhado', 
+                        'Valor Empenhos Pagos', 'Pré-empenhado', 
+                        'Disponível', 'A Pagar']:
+                centros_display[col] = centros_display[col].apply(lambda x: f'R$ {x:,.2f}')
+            centros_display['% Execução'] = centros_display['% Execução'].apply(lambda x: f'{x:.1f}%')
+            
+            centros_display.columns = ['Centro de Custo', 'Limite', 'Empenhado', 'Pago', 
+                                    'Pré-Empenhado', 'Disponível', 'A Pagar', '% Execução']
+            
+            st.dataframe(centros_display, width='stretch')
 
-# ==================== ABA 10: BUSCADOR ====================
-with tab10:
+# ==================== ABA 7: DADOS ORÇAMENTÁRIOS ====================
+with tab5:
+    st.header("💳 Dados Orçamentários")
+    st.markdown("Visualização consolidada de empenhos, pré-empenhos e restos a pagar")
+    
+    # Criar sub-abas
+    subtab1_orc, subtab2_orc, subtab3_orc = st.tabs([
+        "💰 Empenhos Detalhados",
+        "📋 Pré-Empenhos", 
+        "📈 Restos a Pagar"
+    ])
+    
+    # ==================== SUB-ABA 1: EMPENHOS ====================
+    with subtab1_orc:
+        st.subheader("Empenhos Detalhados")
+        
+        if len(df_empenhos) == 0:
+            st.warning("Dados de empenhos não disponíveis.")
+        else:
+            # FILTROS
+            col1_f, col2_f, col3_f = st.columns(3)
+            
+            with col1_f:
+                if 'Ano' in df_empenhos.columns:
+                    anos_emp = sorted(df_empenhos['Ano'].dropna().unique().tolist())
+                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_emp")
+            
+            with col2_f:
+                if 'Favorecido' in df_empenhos.columns:
+                    favorecidos = sorted([f for f in df_empenhos['Favorecido'].unique() if f != 'Não informado'][:100])
+                    favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_emp")
+            
+            with col3_f:
+                if 'Grupo' in df_empenhos.columns:
+                    grupos = sorted(df_empenhos['Grupo'].dropna().unique().tolist())
+                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_emp")
+            
+            # Aplicar filtros
+            df_empenhos_filtered = df_empenhos.copy()
+            
+            if 'Ano' in df_empenhos.columns and ano_emp:
+                df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Ano'].isin(ano_emp)]
+            
+            if 'Favorecido' in df_empenhos.columns and favorecido_emp != 'Todos':
+                df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Favorecido'] == favorecido_emp]
+            
+            if 'Grupo' in df_empenhos.columns and grupo_emp:
+                df_empenhos_filtered = df_empenhos_filtered[df_empenhos_filtered['Grupo'].isin(grupo_emp)]
+            
+            st.markdown("---")
+            
+            # KPIs
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Empenhos", f"{len(df_empenhos_filtered):,}")
+            with col2:
+                if 'Valor Empenhado' in df_empenhos_filtered.columns:
+                    st.metric("Valor Empenhado", formatar_real(df_empenhos_filtered['Valor Empenhado'].sum()))
+            with col3:
+                if 'Valor Pago' in df_empenhos_filtered.columns:
+                    st.metric("Valor Pago", formatar_real(df_empenhos_filtered['Valor Pago'].sum()))
+            with col4:
+                if 'R$ a pagar' in df_empenhos_filtered.columns:
+                    st.metric("A Pagar", formatar_real(df_empenhos_filtered['R$ a pagar'].sum()))
+            
+            st.markdown("---")
+            
+            # Gráficos
+            st.subheader("📊 Análises e Visualizações")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'Favorecido' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns and len(df_empenhos_filtered) > 0:
+                    st.markdown("### 👥 Top 15 Favorecidos")
+                    favorecidos_agg = df_empenhos_filtered.groupby('Favorecido')['Valor Empenhado'].sum().nlargest(15)
+                    
+                    if len(favorecidos_agg) > 0:
+                        fig_fav = go.Figure()
+                        fig_fav.add_trace(go.Bar(
+                            x=favorecidos_agg.values,
+                            y=favorecidos_agg.index,
+                            orientation='h',
+                            marker_color='#0068c9'
+                        ))
+                        fig_fav.update_layout(
+                            xaxis_title="Valor Empenhado (R$)",
+                            yaxis_title="",
+                            height=500,
+                            yaxis={'categoryorder':'total ascending'}
+                        )
+                        st.plotly_chart(fig_fav, width='stretch')
+            
+            with col2:
+                if 'Grupo' in df_empenhos_filtered.columns and 'Valor Empenhado' in df_empenhos_filtered.columns and len(df_empenhos_filtered) > 0:
+                    st.subheader("📊 Por Grupo")
+                    grupo_agg = df_empenhos_filtered.groupby('Grupo')['Valor Empenhado'].sum().nlargest(15)
+                    
+                    if len(grupo_agg) > 0:
+                        fig_grupo = go.Figure()
+                        fig_grupo.add_trace(go.Bar(
+                            x=grupo_agg.values,
+                            y=grupo_agg.index,
+                            orientation='h',
+                            marker_color='#17a2b8'
+                        ))
+                        fig_grupo.update_layout(
+                            xaxis_title="Valor Empenhado (R$)",
+                            yaxis_title="",
+                            height=500,
+                            yaxis={'categoryorder':'total ascending'}
+                        )
+                        st.plotly_chart(fig_grupo, width='stretch')
+            
+            # Adicionar gráfico de evolução anual se tiver coluna Ano
+            if 'Ano' in df_empenhos_filtered.columns and len(df_empenhos_filtered) > 0:
+                st.markdown("---")
+                st.subheader("📈 Evolução Anual")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Quantidade por ano
+                    ano_qtd = df_empenhos_filtered.groupby('Ano').size()
+                    if len(ano_qtd) > 0:
+                        fig_ano_qtd = go.Figure()
+                        fig_ano_qtd.add_trace(go.Bar(
+                            x=ano_qtd.index,
+                            y=ano_qtd.values,
+                            marker_color='#0068c9',
+                            text=ano_qtd.values,
+                            textposition='auto'
+                        ))
+                        fig_ano_qtd.update_layout(
+                            title="Quantidade de Empenhos por Ano",
+                            xaxis_title="Ano",
+                            yaxis_title="Quantidade",
+                            height=400
+                        )
+                        st.plotly_chart(fig_ano_qtd, width='stretch')
+                
+                with col2:
+                    # Valor por ano
+                    if 'Valor Empenhado' in df_empenhos_filtered.columns:
+                        ano_valor = df_empenhos_filtered.groupby('Ano')['Valor Empenhado'].sum()
+                        if len(ano_valor) > 0:
+                            fig_ano_valor = go.Figure()
+                            fig_ano_valor.add_trace(go.Bar(
+                                x=ano_valor.index,
+                                y=ano_valor.values,
+                                marker_color='#28a745',
+                                text=ano_valor.values.apply(lambda x: f'R$ {x/1000:.0f}K'),
+                                textposition='auto'
+                            ))
+                            fig_ano_valor.update_layout(
+                                title="Valor Empenhado por Ano",
+                                xaxis_title="Ano",
+                                yaxis_title="Valor (R$)",
+                                height=400
+                            )
+                            st.plotly_chart(fig_ano_valor, width='stretch')
+            
+            # Tabela
+            st.markdown("---")
+            st.subheader("📋 Tabela de Empenhos")
+            
+            col_busca, col_limite = st.columns([3, 1])
+            with col_busca:
+                busca_emp = st.text_input("🔍 Buscar:", "", key="busca_emp")
+            with col_limite:
+                limite_emp = st.selectbox("Registros", [100, 500, 1000, "Todos"], index=0, key="limite_emp")
+            
+            df_emp_display = df_empenhos_filtered.copy()
+            if busca_emp:
+                mask = False
+                for col in ['Empenho', 'Favorecido', 'Processo', 'Contrato']:
+                    if col in df_emp_display.columns:
+                        mask = mask | df_emp_display[col].astype(str).str.contains(busca_emp, case=False, na=False)
+                df_emp_display = df_emp_display[mask]
+            
+            # Aplicar limite de registros
+            total_registros = len(df_emp_display)
+            if limite_emp != "Todos":
+                df_emp_display = df_emp_display.head(int(limite_emp))
+            
+            # Selecionar colunas principais para exibição
+            colunas_exibir = []
+            for col in ['Ano', 'Empenho', 'Favorecido', 'Contrato', 'Processo', 'Valor Empenhado', 'Valor Pago', 'R$ a pagar', 'Grupo']:
+                if col in df_emp_display.columns:
+                    colunas_exibir.append(col)
+            
+            if colunas_exibir:
+                df_emp_final = df_emp_display[colunas_exibir].copy()
+                
+                # Formatar valores monetários
+                for col in ['Valor Empenhado', 'Valor Pago', 'R$ a pagar']:
+                    if col in df_emp_final.columns:
+                        df_emp_final[col] = df_emp_final[col].apply(lambda x: formatar_real(x) if pd.notna(x) else '-')
+                
+                st.dataframe(df_emp_final, width='stretch', height=500)
+                st.info(f"📊 Exibindo {len(df_emp_final):,} de {total_registros:,} registros")
+                
+                # Botão de download
+                csv = df_empenhos_filtered[colunas_exibir].to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar dados filtrados (CSV)",
+                    data=csv,
+                    file_name=f"empenhos_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="download_emp"
+                )
+            else:
+                st.warning("Nenhuma coluna disponível para exibição")
+    
+    # ==================== SUB-ABA 2: PRÉ-EMPENHOS ====================
+    with subtab2_orc:
+        st.subheader("Pré-Empenhos")
+        
+        if len(df_pre_empenhos) == 0:
+            st.warning("Dados de pré-empenhos não disponíveis.")
+        else:
+            # Filtros
+            col1_f, col2_f = st.columns(2)
+            
+            with col1_f:
+                if 'Ano' in df_pre_empenhos.columns:
+                    anos_pre = sorted(df_pre_empenhos['Ano'].dropna().unique().tolist())
+                    ano_pre = st.multiselect("Ano", options=anos_pre, default=[], key="ano_pre")
+            
+            with col2_f:
+                if 'Favorecido' in df_pre_empenhos.columns:
+                    favorecidos_pre = sorted([f for f in df_pre_empenhos['Favorecido'].unique()][:100])
+                    favorecido_pre = st.selectbox("Favorecido", options=['Todos'] + favorecidos_pre, key="fav_pre")
+            
+            # Aplicar filtros
+            df_pre_filtered = df_pre_empenhos.copy()
+            
+            if 'Ano' in df_pre_empenhos.columns and ano_pre:
+                df_pre_filtered = df_pre_filtered[df_pre_filtered['Ano'].isin(ano_pre)]
+            
+            if 'Favorecido' in df_pre_empenhos.columns and favorecido_pre != 'Todos':
+                df_pre_filtered = df_pre_filtered[df_pre_filtered['Favorecido'] == favorecido_pre]
+            
+            st.markdown("---")
+            
+            # KPIs
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Pré-Empenhos", f"{len(df_pre_filtered):,}")
+            with col2:
+                if 'Valor Pré-Empenhado' in df_pre_filtered.columns:
+                    st.metric("Valor Total", formatar_real(df_pre_filtered['Valor Pré-Empenhado'].sum()))
+            with col3:
+                if 'Valor Pré-Empenhado' in df_pre_filtered.columns:
+                    valor_medio = df_pre_filtered['Valor Pré-Empenhado'].mean()
+                    st.metric("Valor Médio", formatar_real(valor_medio))
+            
+            st.markdown("---")
+            
+            # Gráficos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'Favorecido' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns and len(df_pre_filtered) > 0:
+                    st.subheader("👥 Top 15 Favorecidos")
+                    fav_agg = df_pre_filtered.groupby('Favorecido')['Valor Pré-Empenhado'].sum().nlargest(15)
+                    
+                    if len(fav_agg) > 0:
+                        fig_fav_pre = go.Figure()
+                        fig_fav_pre.add_trace(go.Bar(
+                            x=fav_agg.values,
+                            y=fav_agg.index,
+                            orientation='h',
+                            marker_color='#ffc107'
+                        ))
+                        fig_fav_pre.update_layout(
+                            xaxis_title="Valor (R$)",
+                            yaxis_title="",
+                            height=500,
+                            yaxis={'categoryorder':'total ascending'}
+                        )
+                        st.plotly_chart(fig_fav_pre, width='stretch')
+            
+            with col2:
+                if 'Ano' in df_pre_filtered.columns and 'Valor Pré-Empenhado' in df_pre_filtered.columns and len(df_pre_filtered) > 0:
+                    st.subheader("📈 Evolução Anual")
+                    ano_agg = df_pre_filtered.groupby('Ano')['Valor Pré-Empenhado'].sum()
+                    
+                    if len(ano_agg) > 0:
+                        fig_ano_pre = go.Figure()
+                        fig_ano_pre.add_trace(go.Bar(
+                            x=ano_agg.index,
+                            y=ano_agg.values,
+                            marker_color='#ffc107'
+                        ))
+                        fig_ano_pre.update_layout(
+                            title="Pré-Empenhos por Ano",
+                            xaxis_title="Ano",
+                            yaxis_title="Valor (R$)",
+                            height=500
+                        )
+                        st.plotly_chart(fig_ano_pre, width='stretch')
+            
+            # Tabela
+            st.markdown("---")
+            st.subheader("📋 Tabela de Pré-Empenhos")
+            
+            busca_pre = st.text_input("🔍 Buscar:", "", key="busca_pre")
+            
+            df_pre_display = df_pre_filtered.copy()
+            if busca_pre:
+                mask = False
+                for col in ['Pré-Empenho', 'Favorecido', 'Processo']:
+                    if col in df_pre_display.columns:
+                        mask = mask | df_pre_display[col].astype(str).str.contains(busca_pre, case=False, na=False)
+                df_pre_display = df_pre_display[mask]
+            
+            # Seleção de colunas principais
+            colunas_exibir_pre = []
+            for col in ['Ano', 'Pré-Empenho', 'Favorecido', 'Processo', 'Valor Pré-Empenhado']:
+                if col in df_pre_display.columns:
+                    colunas_exibir_pre.append(col)
+            
+            if colunas_exibir_pre:
+                df_pre_final = df_pre_display[colunas_exibir_pre].head(100).copy()
+                
+                # Formatar valores monetários
+                if 'Valor Pré-Empenhado' in df_pre_final.columns:
+                    df_pre_final['Valor Pré-Empenhado'] = df_pre_final['Valor Pré-Empenhado'].apply(
+                        lambda x: formatar_real(x) if pd.notna(x) else '-'
+                    )
+                
+                st.dataframe(df_pre_final, width='stretch', height=400)
+                st.info(f"📊 Exibindo {len(df_pre_final):,} de {len(df_pre_display):,} registros")
+                
+                # Botão de download
+                csv_pre = df_pre_filtered[colunas_exibir_pre].to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar dados filtrados (CSV)",
+                    data=csv_pre,
+                    file_name=f"pre_empenhos_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="download_pre_empenhos"
+                )
+            else:
+                st.dataframe(df_pre_display.head(100), width='stretch', height=400)
+                st.info(f"📊 Exibindo primeiros 100 registros")
+    
+    # ==================== SUB-ABA 3: RESTOS A PAGAR ====================
+    with subtab3_orc:
+        st.subheader("Restos a Pagar")
+        
+        if len(df_rp) == 0:
+            st.warning("Dados de restos a pagar não disponíveis.")
+        else:
+            # Filtros
+            col1_f, col2_f = st.columns(2)
+            
+            with col1_f:
+                if 'Ano' in df_rp.columns:
+                    anos_rp = sorted(df_rp['Ano'].dropna().unique().tolist())
+                    ano_rp = st.multiselect("Ano", options=anos_rp, default=[], key="ano_rp")
+            
+            with col2_f:
+                if 'Favorecido' in df_rp.columns:
+                    favorecidos_rp = sorted([f for f in df_rp['Favorecido'].unique()][:100])
+                    favorecido_rp = st.selectbox("Favorecido", options=['Todos'] + favorecidos_rp, key="fav_rp")
+            
+            # Aplicar filtros
+            df_rp_filtered = df_rp.copy()
+            
+            if 'Ano' in df_rp.columns and ano_rp:
+                df_rp_filtered = df_rp_filtered[df_rp_filtered['Ano'].isin(ano_rp)]
+            
+            if 'Favorecido' in df_rp.columns and favorecido_rp != 'Todos':
+                df_rp_filtered = df_rp_filtered[df_rp_filtered['Favorecido'] == favorecido_rp]
+            
+            st.markdown("---")
+            
+            # KPIs
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if 'RP Inscritos' in df_rp_filtered.columns:
+                    st.metric("RP Inscritos", formatar_real(df_rp_filtered['RP Inscritos'].sum()))
+            with col2:
+                if 'RP Pagos' in df_rp_filtered.columns:
+                    st.metric("RP Pagos", formatar_real(df_rp_filtered['RP Pagos'].sum()))
+            with col3:
+                if 'RP a Pagar' in df_rp_filtered.columns:
+                    st.metric("RP a Pagar", formatar_real(df_rp_filtered['RP a Pagar'].sum()))
+            with col4:
+                if 'RP Cancelados' in df_rp_filtered.columns:
+                    st.metric("RP Cancelados", formatar_real(df_rp_filtered['RP Cancelados'].sum()))
+            
+            st.markdown("---")
+            
+            # Gráficos
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'Favorecido' in df_rp_filtered.columns and 'RP a Pagar' in df_rp_filtered.columns and len(df_rp_filtered) > 0:
+                    st.subheader("👥 Top 15 Favorecidos - RP a Pagar")
+                    fav_rp_agg = df_rp_filtered.groupby('Favorecido')['RP a Pagar'].sum().nlargest(15)
+                    
+                    if len(fav_rp_agg) > 0:
+                        fig_fav_rp = go.Figure()
+                        fig_fav_rp.add_trace(go.Bar(
+                            x=fav_rp_agg.values,
+                            y=fav_rp_agg.index,
+                            orientation='h',
+                            marker_color='#dc3545'
+                        ))
+                        fig_fav_rp.update_layout(
+                            xaxis_title="Valor (R$)",
+                            yaxis_title="",
+                            height=500,
+                            yaxis={'categoryorder':'total ascending'}
+                        )
+                        st.plotly_chart(fig_fav_rp, width='stretch')
+            
+            with col2:
+                # Gráfico de pizza com distribuição
+                if len(df_rp_filtered) > 0:
+                    st.subheader("📊 Distribuição de RP")
+                    valores_rp = {
+                        'Pagos': df_rp_filtered['RP Pagos'].sum() if 'RP Pagos' in df_rp_filtered.columns else 0,
+                        'A Pagar': df_rp_filtered['RP a Pagar'].sum() if 'RP a Pagar' in df_rp_filtered.columns else 0,
+                        'Cancelados': df_rp_filtered['RP Cancelados'].sum() if 'RP Cancelados' in df_rp_filtered.columns else 0
+                    }
+                    
+                    # Filtrar apenas valores > 0
+                    valores_rp = {k: v for k, v in valores_rp.items() if v > 0}
+                    
+                    if valores_rp:
+                        fig_dist_rp = go.Figure(data=[go.Pie(
+                            labels=list(valores_rp.keys()),
+                            values=list(valores_rp.values()),
+                            marker=dict(colors=['#28a745', '#ffc107', '#dc3545']),
+                            hole=0.4
+                        )])
+                        fig_dist_rp.update_layout(height=500)
+                        st.plotly_chart(fig_dist_rp, width='stretch')
+            
+            # Tabela
+            st.markdown("---")
+            st.subheader("📋 Tabela de Restos a Pagar")
+            
+            busca_rp = st.text_input("🔍 Buscar:", "", key="busca_rp")
+            
+            df_rp_display = df_rp_filtered.copy()
+            if busca_rp:
+                mask = False
+                for col in ['RP', 'Favorecido', 'Processo']:
+                    if col in df_rp_display.columns:
+                        mask = mask | df_rp_display[col].astype(str).str.contains(busca_rp, case=False, na=False)
+                df_rp_display = df_rp_display[mask]
+            
+            # Seleção de colunas principais
+            colunas_exibir_rp = []
+            for col in ['Ano', 'RP', 'Favorecido', 'Processo', 'RP Inscritos', 'RP Pagos', 'RP a Pagar', 'RP Cancelados']:
+                if col in df_rp_display.columns:
+                    colunas_exibir_rp.append(col)
+            
+            if colunas_exibir_rp:
+                df_rp_final = df_rp_display[colunas_exibir_rp].head(100).copy()
+                
+                # Formatar valores monetários
+                for col in ['RP Inscritos', 'RP Pagos', 'RP a Pagar', 'RP Cancelados']:
+                    if col in df_rp_final.columns:
+                        df_rp_final[col] = df_rp_final[col].apply(
+                            lambda x: formatar_real(x) if pd.notna(x) else '-'
+                        )
+                
+                st.dataframe(df_rp_final, width='stretch', height=400)
+                st.info(f"📊 Exibindo {len(df_rp_final):,} de {len(df_rp_display):,} registros")
+                
+                # Botão de download
+                csv_rp = df_rp_filtered[colunas_exibir_rp].to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar dados filtrados (CSV)",
+                    data=csv_rp,
+                    file_name=f"restos_a_pagar_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    key="download_restos_pagar"
+                )
+            else:
+                st.dataframe(df_rp_display.head(100), width='stretch', height=400)
+                st.info(f"📊 Exibindo primeiros 100 registros")
+
+
+# ==================== ABA 8: RECONCILIAÇÃO DE DADOS ====================
+with tab6:
+    st.header("🔗 Reconciliação de Dados")
+    st.markdown("""
+    Esta aba compara os dados do **ComprasNet** com os **dados de empenhos, pré-empenhos, disponível e restos a pagar** usando o **número do contrato** como chave de relacionamento.
+    
+    **Normalização aplicada:** Os zeros à esquerda são removidos antes da comparação para garantir correspondência correta.
+    
+    **Exemplo:**
+    - ComprasNet: `00001/2025` → Normalizado: `1/2025`
+    - Empenhos: `002/2025` → Normalizado: `2/2025`
+    """)
+    
+    # Função para normalizar número de contrato (remover zeros à esquerda)
+    def normalizar_contrato(num_contrato):
+        """Remove zeros à esquerda e normaliza o número do contrato"""
+        if pd.isna(num_contrato):
+            return ''
+        # Converter para string e limpar
+        num_str = str(num_contrato).strip()
+        # Se contém /, separar e tratar cada parte
+        if '/' in num_str:
+            partes = num_str.split('/')
+            # Remover zeros à esquerda da primeira parte (número)
+            num_sem_zeros = partes[0].lstrip('0') or '0'
+            # Manter o ano
+            if len(partes) > 1:
+                return f"{num_sem_zeros}/{partes[1]}"
+            return num_sem_zeros
+        return num_str.lstrip('0') or '0'
+    
+    # Preparar dados do ComprasNet
+    df_comprasnet = df.copy()
+    if 'numeroContrato' in df_comprasnet.columns:
+        df_comprasnet['numeroContrato_original'] = df_comprasnet['numeroContrato']
+        df_comprasnet['numeroContrato'] = df_comprasnet['numeroContrato'].apply(normalizar_contrato)
+    
+    # Preparar dados do Portal TRF5 (empenhos)
+    df_portal_rec = df_empenhos.copy()
+    
+    # Tentar identificar a coluna de número de contrato no portal
+    # Possíveis nomes: 'Contrato', 'Número Contrato', 'Nº Contrato', 'numeroContrato', 'Empenho'
+    col_contrato_portal = None
+    for col in ['Contrato', 'Número Contrato', 'Nº Contrato', 'numeroContrato', 'Numero Contrato', 'Empenho']:
+        if col in df_portal_rec.columns:
+            col_contrato_portal = col
+            break
+    
+    if col_contrato_portal is None:
+        st.warning("⚠️ Não foi possível identificar a coluna de número de contrato nos dados de empenhos.")
+        st.info("Colunas disponíveis: " + ", ".join(df_portal_rec.columns.tolist()[:10]) + "...")
+    else:
+        df_portal_rec[f'{col_contrato_portal}_original'] = df_portal_rec[col_contrato_portal]
+        df_portal_rec[col_contrato_portal] = df_portal_rec[col_contrato_portal].apply(normalizar_contrato)
+        
+        # Obter conjuntos únicos de contratos
+        contratos_comprasnet = set(df_comprasnet['numeroContrato'].unique())
+        contratos_portal = set(df_portal_rec[col_contrato_portal].unique())
+        
+        # Calcular intersecções
+        contratos_ambos = contratos_comprasnet & contratos_portal
+        contratos_so_comprasnet = contratos_comprasnet - contratos_portal
+        contratos_so_portal = contratos_portal - contratos_comprasnet
+        
+        # Exibir métricas
+        st.markdown("### 📊 Resumo da Reconciliação")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total ComprasNet", f"{len(contratos_comprasnet):,}")
+        with col2:
+            st.metric("Total Portal TRF5", f"{len(contratos_portal):,}")
+        with col3:
+            st.metric("✅ Em Ambos", f"{len(contratos_ambos):,}")
+        with col4:
+            perc_match = (len(contratos_ambos) / len(contratos_comprasnet) * 100) if len(contratos_comprasnet) > 0 else 0
+            st.metric("% Correspondência", f"{perc_match:.1f}%")
+        
+        st.markdown("---")
+        
+        # Gráfico de distribuição
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fig_dist = go.Figure(data=[go.Pie(
+                labels=['Em Ambos', 'Só ComprasNet', 'Só Portal'],
+                values=[len(contratos_ambos), len(contratos_so_comprasnet), len(contratos_so_portal)],
+                marker=dict(colors=['#28a745', '#ffc107', '#dc3545']),
+                hole=0.4
+            )])
+            fig_dist.update_layout(title="Distribuição de Contratos", height=400)
+            st.plotly_chart(fig_dist, width='stretch')
+        
+        with col2:
+            # Criar DataFrame para o gráfico
+            dados_comp = pd.DataFrame({
+                'Categoria': ['ComprasNet Total', 'Portal TRF5 Total', 'Correspondência'],
+                'Quantidade': [len(contratos_comprasnet), len(contratos_portal), len(contratos_ambos)]
+            })
+            
+            fig_comp = go.Figure()
+            fig_comp.add_trace(go.Bar(
+                x=dados_comp['Categoria'],
+                y=dados_comp['Quantidade'],
+                marker_color=['#0068c9', '#17a2b8', '#28a745'],
+                text=dados_comp['Quantidade'],
+                textposition='auto'
+            ))
+            fig_comp.update_layout(
+                title="Comparação de Quantidades",
+                yaxis_title="Quantidade de Contratos",
+                height=400
+            )
+            st.plotly_chart(fig_comp, width='stretch')
+        
+        st.markdown("---")
+        
+        # Tabs para visualizar diferentes categorias
+        rec_tab1, rec_tab2, rec_tab3 = st.tabs([
+            f"✅ Em Ambos ({len(contratos_ambos)})",
+            f"⚠️ Só ComprasNet ({len(contratos_so_comprasnet)})",
+            f"⚠️ Só Portal ({len(contratos_so_portal)})"
+        ])
+        
+        with rec_tab1:
+            st.subheader("Contratos presentes em ambas as bases")
+            if len(contratos_ambos) > 0:
+                df_ambos = df_comprasnet[df_comprasnet['numeroContrato'].isin(contratos_ambos)][
+                    ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
+                     'dataVigenciaInicial', 'dataVigenciaFinal', 'status']
+                ].sort_values('valorGlobal', ascending=False)
+                
+                # Adicionar informações do portal
+                df_portal_info = df_portal_rec[df_portal_rec[col_contrato_portal].isin(contratos_ambos)]
+                
+                st.metric("Contratos Reconciliados", f"{len(df_ambos):,}")
+                st.metric("Valor Total (ComprasNet)", formatar_real(df_ambos['valorGlobal'].sum()))
+                
+                st.dataframe(df_ambos, width='stretch', height=400)
+                
+                # Download
+                csv = df_ambos.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar contratos reconciliados (CSV)",
+                    data=csv,
+                    file_name=f"contratos_reconciliados_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.info("Nenhum contrato encontrado em ambas as bases.")
+        
+        with rec_tab2:
+            st.subheader("Contratos presentes apenas no ComprasNet")
+            st.markdown("""
+            **Atenção:** Estes contratos estão cadastrados no ComprasNet mas não foram encontrados no Portal TRF5.
+            Isso pode indicar:
+            - Contratos ainda não processados no Portal
+            - Diferenças na numeração ou formato
+            - Contratos cancelados ou não vigentes
+            """)
+            
+            if len(contratos_so_comprasnet) > 0:
+                df_so_comprasnet = df_comprasnet[df_comprasnet['numeroContrato'].isin(contratos_so_comprasnet)][
+                    ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
+                     'dataVigenciaInicial', 'dataVigenciaFinal', 'status']
+                ].sort_values('valorGlobal', ascending=False)
+                
+                st.metric("Total de Contratos", f"{len(df_so_comprasnet):,}")
+                st.metric("Valor Total", formatar_real(df_so_comprasnet['valorGlobal'].sum()))
+                
+                # Análise por status
+                status_counts = df_so_comprasnet['status'].value_counts()
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Vigentes", status_counts.get('Vigente', 0))
+                with col2:
+                    st.metric("Vencidos", status_counts.get('Vencido', 0))
+                
+                st.dataframe(df_so_comprasnet, width='stretch', height=400)
+                
+                # Download
+                csv = df_so_comprasnet.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar contratos só ComprasNet (CSV)",
+                    data=csv,
+                    file_name=f"contratos_so_comprasnet_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.success("Todos os contratos do ComprasNet foram encontrados no Portal!")
+        
+        with rec_tab3:
+            st.subheader("Contratos presentes apenas no Portal TRF5")
+            st.markdown("""
+            **Atenção:** Estes contratos estão no Portal TRF5 mas não foram encontrados no ComprasNet.
+            Isso pode indicar:
+            - Contratos antigos não migrados para o ComprasNet
+            - Diferenças na numeração ou formato
+            - Tipos de contrato não incluídos na busca do ComprasNet
+            """)
+            
+            if len(contratos_so_portal) > 0:
+                # Selecionar colunas relevantes do portal
+                colunas_portal = [col_contrato_portal]
+                for col in ['Favorecido Nome', 'Valor Empenhos Total', 'Data Emissão', 'Ano']:
+                    if col in df_portal_rec.columns:
+                        colunas_portal.append(col)
+                
+                df_so_portal = df_portal_rec[df_portal_rec[col_contrato_portal].isin(contratos_so_portal)][
+                    colunas_portal
+                ].drop_duplicates(subset=[col_contrato_portal]).sort_values(
+                    'Valor Empenhos Total' if 'Valor Empenhos Total' in colunas_portal else col_contrato_portal,
+                    ascending=False
+                )
+                
+                st.metric("Total de Contratos", f"{len(df_so_portal):,}")
+                
+                if 'Valor Empenhos Total' in df_so_portal.columns:
+                    total_val = pd.to_numeric(df_so_portal['Valor Empenhos Total'], errors='coerce').sum()
+                    st.metric("Valor Total Empenhado", formatar_real(total_val))
+                
+                st.dataframe(df_so_portal, width='stretch', height=400)
+                
+                # Download
+                csv = df_so_portal.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Baixar contratos só Portal (CSV)",
+                    data=csv,
+                    file_name=f"contratos_so_portal_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.success("Todos os contratos do Portal foram encontrados no ComprasNet!")
+
+# ==================== ABA 9: BUSCADOR ====================
+with tab7:
     st.header("🔍 Buscador")
     
     # OPÇÃO DE BUSCA: SIMPLIFICADA VS DETALHADA
@@ -1835,7 +2233,7 @@ with tab10:
         for col in ['Limite', 'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos']:
             df_busca_display[col] = df_busca_display[col].apply(formatar_real)
         
-        st.dataframe(df_busca_display, use_container_width=True, height=500)
+        st.dataframe(df_busca_display, width='stretch', height=500)
         
         # Download
         csv = df_busca_simp.to_csv(index=False).encode('utf-8')
@@ -1847,11 +2245,11 @@ with tab10:
         )
     
     else:
-        # BUSCA DETALHADA - USA DADOS DO PORTAL
+        # BUSCA DETALHADA - USA DADOS DE RESUMO
         st.subheader("🔬 Busca Detalhada - Histórico de Modificações")
         st.info("💡 Busca nos dados do Portal TRF5, com registro histórico de cada modificação")
         
-        df_portal = load_portal_data()
+        df_portal = df_resumo.copy()
         
         if len(df_portal) == 0:
             st.warning("Dados do portal não disponíveis.")
@@ -1967,7 +2365,7 @@ with tab10:
                     except:
                         pass
                 
-                st.dataframe(df_exibir, use_container_width=True, height=500)
+                st.dataframe(df_exibir, width='stretch', height=500)
                 
                 # Download
                 csv = df_portal_filtered[colunas_selecionadas].to_csv(index=False).encode('utf-8')
@@ -2004,7 +2402,7 @@ with tab10:
                             height=400
                         )
                         
-                        st.plotly_chart(fig_tipo, use_container_width=True)
+                        st.plotly_chart(fig_tipo, width='stretch')
                 
                 with col2:
                     # Por grupo de despesa
@@ -2027,15 +2425,452 @@ with tab10:
                             yaxis={'categoryorder':'total ascending'}
                         )
                         
-                        st.plotly_chart(fig_grupo_portal, use_container_width=True)
+                        st.plotly_chart(fig_grupo_portal, width='stretch')
+
+# ==================== ABA 10: ANÁLISE DETALHADA DE CONTRATOS ====================
+with tab8:
+    st.header("📈 Análise Detalhada de Contratos")
+    st.markdown("""
+    Esta aba apresenta uma análise aprofundada cruzando dados de contratos com informações 
+    de empenhos, gestores e centros de custos.
+    """)
+    
+    # Fazer LEFT JOIN entre contratos e empenhos
+    # Normalizar números de contrato
+    def normalizar_contrato(num_contrato):
+        """Remove zeros à esquerda e normaliza o número do contrato"""
+        if pd.isna(num_contrato):
+            return ''
+        num_str = str(num_contrato).strip()
+        if '/' in num_str:
+            partes = num_str.split('/')
+            num_sem_zeros = partes[0].lstrip('0') or '0'
+            if len(partes) > 1:
+                return f"{num_sem_zeros}/{partes[1]}"
+            return num_sem_zeros
+        return num_str.lstrip('0') or '0'
+    
+    # Preparar dados
+    df_contratos_join = df.copy()
+    df_contratos_join['numeroContrato_norm'] = df_contratos_join['numeroContrato'].apply(normalizar_contrato)
+    
+    # Extrair ano do contrato se não existir
+    if 'ano' not in df_contratos_join.columns:
+        df_contratos_join['ano'] = df_contratos_join['numeroContrato'].str.extract(r'/(\d{4})')[0]
+    
+    # Converter ano para string para compatibilidade com merge
+    df_contratos_join['ano'] = df_contratos_join['ano'].astype(str)
+    
+    # Preparar empenhos
+    if len(df_empenhos) > 0:
+        df_empenhos_join = df_empenhos.copy()
+        
+        # Tentar encontrar coluna de contrato
+        col_contrato_emp = None
+        for col in ['Contrato', 'Número Contrato', 'numeroContrato', 'Empenho']:
+            if col in df_empenhos_join.columns:
+                col_contrato_emp = col
+                break
+        
+        if col_contrato_emp:
+            df_empenhos_join['numeroContrato_norm'] = df_empenhos_join[col_contrato_emp].apply(normalizar_contrato)
+            
+            # Preparar colunas para agregação - verificar quais existem
+            agg_dict = {}
+            if 'Valor Empenhado' in df_empenhos_join.columns:
+                agg_dict['Valor Empenhado'] = 'sum'
+            if 'Valor Pago' in df_empenhos_join.columns:
+                agg_dict['Valor Pago'] = 'sum'
+            
+            # Se tiver colunas para agregar
+            if agg_dict:
+                empenhos_agg = df_empenhos_join.groupby('numeroContrato_norm').agg(agg_dict).reset_index()
+            else:
+                st.warning("⚠️ Colunas financeiras não encontradas nos empenhos")
+                empenhos_agg = pd.DataFrame({'numeroContrato_norm': [], 'Valor Empenhado': [], 'Valor Pago': []})
+            
+            # Garantir que as colunas existam
+            if 'Valor Empenhado' not in empenhos_agg.columns:
+                empenhos_agg['Valor Empenhado'] = 0
+            if 'Valor Pago' not in empenhos_agg.columns:
+                empenhos_agg['Valor Pago'] = 0
+            
+            # Fazer LEFT JOIN
+            df_analise = df_contratos_join.merge(
+                empenhos_agg,
+                on='numeroContrato_norm',
+                how='left',
+                suffixes=('', '_emp')
+            )
+        else:
+            st.warning("⚠️ Não foi possível identificar coluna de contrato nos empenhos")
+            df_analise = df_contratos_join.copy()
+            df_analise['Valor Empenhado'] = 0
+            df_analise['Valor Pago'] = 0
+    else:
+        st.warning("⚠️ Dados de empenhos não disponíveis")
+        df_analise = df_contratos_join.copy()
+        df_analise['Valor Empenhado'] = 0
+        df_analise['Valor Pago'] = 0
+    
+    # Tentar fazer join com resumo (para pegar gestor e centro de custos)
+    if len(df_resumo) > 0:
+        # Preparar resumo agrupado por ano
+        resumo_por_ano = df_resumo.groupby('Ano').agg({
+            'Gestor(a)': lambda x: ', '.join(x.dropna().unique()[:3]),  # Até 3 gestores
+            'Centro de Custo': lambda x: ', '.join(x.dropna().unique()[:3])  # Até 3 centros
+        }).reset_index()
+        
+        # Join com contratos pelo ano
+        df_analise = df_analise.merge(
+            resumo_por_ano,
+            left_on='ano',
+            right_on='Ano',
+            how='left'
+        )
+    
+    # Calcular métricas de prazo
+    df_analise['Dias de Vigência'] = (df_analise['dataVigenciaFinal'] - df_analise['dataVigenciaInicial']).dt.days
+    df_analise['Dias até Vencimento'] = (df_analise['dataVigenciaFinal'] - hoje).dt.days
+    df_analise['% Tempo Decorrido'] = (
+        (hoje - df_analise['dataVigenciaInicial']).dt.days / 
+        df_analise['Dias de Vigência'] * 100
+    ).clip(0, 100)
+    
+    # Preencher valores nulos - garantir que as colunas existam
+    if 'Valor Empenhado' not in df_analise.columns:
+        df_analise['Valor Empenhado'] = 0
+    else:
+        df_analise['Valor Empenhado'] = df_analise['Valor Empenhado'].fillna(0)
+    
+    if 'Valor Pago' not in df_analise.columns:
+        df_analise['Valor Pago'] = 0
+    else:
+        df_analise['Valor Pago'] = df_analise['Valor Pago'].fillna(0)
+    
+    # Preencher Gestor e Centro de Custo
+    if 'Gestor(a)' in df_analise.columns:
+        df_analise['Gestor(a)'] = df_analise['Gestor(a)'].fillna('Não informado')
+    else:
+        df_analise['Gestor(a)'] = 'Não informado'
+    
+    if 'Centro de Custo' in df_analise.columns:
+        df_analise['Centro de Custo'] = df_analise['Centro de Custo'].fillna('Não informado')
+    else:
+        df_analise['Centro de Custo'] = 'Não informado'
+    
+    # Calcular % de execução
+    df_analise['% Empenhado'] = (df_analise['Valor Empenhado'] / df_analise['valorGlobal'] * 100).fillna(0).clip(0, 200)
+    df_analise['% Pago'] = (df_analise['Valor Pago'] / df_analise['valorGlobal'] * 100).fillna(0).clip(0, 200)
+    
+    # ============ VISÃO GERAL ============
+    st.markdown("## 📊 Visão Geral")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total de Contratos", len(df_analise))
+        st.metric("Contratos com Empenhos", len(df_analise[df_analise['Valor Empenhado'] > 0]))
+    
+    with col2:
+        st.metric("Valor Total Contratos", formatar_real(df_analise['valorGlobal'].sum()))
+        st.metric("Valor Total Empenhado", formatar_real(df_analise['Valor Empenhado'].sum()))
+    
+    with col3:
+        st.metric("Valor Total Pago", formatar_real(df_analise['Valor Pago'].sum()))
+        media_exec = df_analise['% Empenhado'].mean()
+        st.metric("% Execução Média", formatar_percentual(media_exec))
+    
+    with col4:
+        prazo_medio = df_analise['Dias de Vigência'].mean()
+        st.metric("Prazo Médio (dias)", f"{prazo_medio:.0f}" if not pd.isna(prazo_medio) else "N/A")
+        tempo_medio = df_analise['% Tempo Decorrido'].mean()
+        st.metric("% Tempo Médio Decorrido", formatar_percentual(tempo_medio))
+    
+    st.markdown("---")
+    
+    # ============ ANÁLISE POR PRAZO ============
+    st.markdown("## ⏰ Análise por Prazo")
+    
+    # Classificar contratos por faixa de prazo
+    df_analise['Faixa de Prazo'] = pd.cut(
+        df_analise['Dias de Vigência'],
+        bins=[0, 180, 365, 730, 1825, float('inf')],
+        labels=['Até 6 meses', '6-12 meses', '1-2 anos', '2-5 anos', 'Acima de 5 anos']
+    )
+    
+    prazo_analise = df_analise.groupby('Faixa de Prazo', observed=True).agg({
+        'numeroContrato': 'count',
+        'valorGlobal': 'sum',
+        '% Empenhado': 'mean',
+        '% Tempo Decorrido': 'mean'
+    }).reset_index()
+    prazo_analise.columns = ['Faixa de Prazo', 'Quantidade', 'Valor Total', '% Empenhado Médio', '% Tempo Decorrido']
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Contratos por Faixa de Prazo")
+        fig_prazo = px.bar(
+            prazo_analise,
+            x='Faixa de Prazo',
+            y='Quantidade',
+            text='Quantidade',
+            labels={'Faixa de Prazo': 'Faixa', 'Quantidade': 'Contratos'}
+        )
+        fig_prazo.update_traces(textposition='outside')
+        st.plotly_chart(fig_prazo, width='stretch')
+    
+    with col2:
+        st.markdown("### % Execução por Faixa de Prazo")
+        fig_exec_prazo = px.bar(
+            prazo_analise,
+            x='Faixa de Prazo',
+            y='% Empenhado Médio',
+            text=prazo_analise['% Empenhado Médio'].apply(lambda x: f"{x:.1f}%"),
+            labels={'Faixa de Prazo': 'Faixa', '% Empenhado Médio': '% Execução'}
+        )
+        fig_exec_prazo.update_traces(textposition='outside', marker_color='#17a2b8')
+        st.plotly_chart(fig_exec_prazo, width='stretch')
+    
+    with st.expander("📋 Ver Tabela - Análise por Prazo", expanded=False):
+        prazo_display = prazo_analise.copy()
+        prazo_display['Valor Total'] = prazo_display['Valor Total'].apply(formatar_real)
+        prazo_display['% Empenhado Médio'] = prazo_display['% Empenhado Médio'].apply(formatar_percentual)
+        prazo_display['% Tempo Decorrido'] = prazo_display['% Tempo Decorrido'].apply(formatar_percentual)
+        st.dataframe(prazo_display, width='stretch')
+    
+    st.markdown("---")
+    
+    # ============ ANÁLISE POR GESTOR ============
+    st.markdown("## 👤 Análise por Gestor")
+    
+    if 'Gestor(a)' in df_analise.columns:
+        gestor_analise = df_analise.groupby('Gestor(a)').agg({
+            'numeroContrato': 'count',
+            'valorGlobal': 'sum',
+            'Valor Empenhado': 'sum',
+            'Valor Pago': 'sum',
+            'Dias até Vencimento': 'mean'
+        }).reset_index()
+        gestor_analise = gestor_analise[gestor_analise['Gestor(a)'] != 'Não informado']
+        gestor_analise.columns = ['Gestor', 'Contratos', 'Valor Total', 'Empenhado', 'Pago', 'Dias Médios p/ Vencimento']
+        gestor_analise = gestor_analise.sort_values('Valor Total', ascending=False)
+        
+        # Top 15 gestores
+        top_gestores_detalhado = gestor_analise.head(15)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Top 15 Gestores - Valor Total")
+            fig_gest = go.Figure()
+            fig_gest.add_trace(go.Bar(
+                x=top_gestores_detalhado['Valor Total'],
+                y=top_gestores_detalhado['Gestor'],
+                orientation='h',
+                marker_color='#0068c9',
+                text=top_gestores_detalhado['Valor Total'].apply(formatar_real),
+                textposition='auto'
+            ))
+            fig_gest.update_layout(
+                xaxis_title="Valor (R$)",
+                yaxis_title="",
+                height=500,
+                yaxis={'categoryorder':'total ascending'}
+            )
+            st.plotly_chart(fig_gest, width='stretch')
+        
+        with col2:
+            st.markdown("### Top 15 Gestores - Execução")
+            top_gestores_detalhado_exec = top_gestores_detalhado.copy()
+            top_gestores_detalhado_exec['% Execução'] = (
+                top_gestores_detalhado_exec['Empenhado'] / 
+                top_gestores_detalhado_exec['Valor Total'] * 100
+            )
+            
+            fig_gest_exec = go.Figure()
+            fig_gest_exec.add_trace(go.Bar(
+                x=top_gestores_detalhado_exec['% Execução'],
+                y=top_gestores_detalhado_exec['Gestor'],
+                orientation='h',
+                marker_color='#28a745',
+                text=top_gestores_detalhado_exec['% Execução'].apply(formatar_percentual),
+                textposition='auto'
+            ))
+            fig_gest_exec.update_layout(
+                xaxis_title="% Execução",
+                yaxis_title="",
+                height=500,
+                yaxis={'categoryorder':'total ascending'}
+            )
+            st.plotly_chart(fig_gest_exec, width='stretch')
+        
+        with st.expander("📋 Ver Tabela - Análise por Gestor", expanded=False):
+            gestor_display = gestor_analise.copy()
+            gestor_display['Valor Total'] = gestor_display['Valor Total'].apply(formatar_real)
+            gestor_display['Empenhado'] = gestor_display['Empenhado'].apply(formatar_real)
+            gestor_display['Pago'] = gestor_display['Pago'].apply(formatar_real)
+            gestor_display['Dias Médios p/ Vencimento'] = gestor_display['Dias Médios p/ Vencimento'].apply(
+                lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
+            )
+            st.dataframe(gestor_display, width='stretch', height=400)
+    else:
+        st.info("Dados de gestor não disponíveis para análise")
+    
+    st.markdown("---")
+    
+    # ============ ANÁLISE POR CENTRO DE CUSTOS ============
+    st.markdown("## 🏢 Análise por Centro de Custos")
+    
+    if 'Centro de Custo' in df_analise.columns:
+        centro_analise = df_analise.groupby('Centro de Custo').agg({
+            'numeroContrato': 'count',
+            'valorGlobal': 'sum',
+            'Valor Empenhado': 'sum',
+            'Dias de Vigência': 'mean',
+            '% Tempo Decorrido': 'mean'
+        }).reset_index()
+        centro_analise = centro_analise[centro_analise['Centro de Custo'] != 'Não informado']
+        centro_analise.columns = ['Centro de Custo', 'Contratos', 'Valor Total', 'Empenhado', 'Prazo Médio (dias)', '% Tempo Decorrido']
+        centro_analise = centro_analise.sort_values('Valor Total', ascending=False)
+        
+        # Top 15 centros
+        top_centros_detalhado = centro_analise.head(15)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Top 15 Centros - Contratos")
+            fig_centro = px.bar(
+                top_centros_detalhado,
+                x='Contratos',
+                y='Centro de Custo',
+                orientation='h',
+                text='Contratos',
+                labels={'Contratos': 'Quantidade', 'Centro de Custo': ''}
+            )
+            fig_centro.update_traces(textposition='outside', marker_color='#ffc107')
+            fig_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_centro, width='stretch')
+        
+        with col2:
+            st.markdown("### Top 15 Centros - Prazo Médio")
+            fig_prazo_centro = px.bar(
+                top_centros_detalhado,
+                x='Prazo Médio (dias)',
+                y='Centro de Custo',
+                orientation='h',
+                text=top_centros_detalhado['Prazo Médio (dias)'].apply(lambda x: f"{x:.0f}"),
+                labels={'Prazo Médio (dias)': 'Dias', 'Centro de Custo': ''}
+            )
+            fig_prazo_centro.update_traces(textposition='outside', marker_color='#17a2b8')
+            fig_prazo_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
+            st.plotly_chart(fig_prazo_centro, width='stretch')
+        
+        with st.expander("📋 Ver Tabela - Análise por Centro de Custos", expanded=False):
+            centro_display = centro_analise.copy()
+            centro_display['Valor Total'] = centro_display['Valor Total'].apply(formatar_real)
+            centro_display['Empenhado'] = centro_display['Empenhado'].apply(formatar_real)
+            centro_display['Prazo Médio (dias)'] = centro_display['Prazo Médio (dias)'].apply(
+                lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
+            )
+            centro_display['% Tempo Decorrido'] = centro_display['% Tempo Decorrido'].apply(formatar_percentual)
+            st.dataframe(centro_display, width='stretch', height=400)
+    else:
+        st.info("Dados de centro de custos não disponíveis para análise")
+    
+    st.markdown("---")
+    
+    # ============ BUSCA DETALHADA ============
+    st.markdown("## 🔍 Busca Detalhada")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        status_filtro_det = st.multiselect(
+            "Status",
+            options=df_analise['status'].unique().tolist(),
+            default=[],
+            key="status_filtro_detalhado"
+        )
+    
+    with col2:
+        if 'Gestor(a)' in df_analise.columns:
+            gestores_disp = sorted([g for g in df_analise['Gestor(a)'].unique() if g != 'Não informado'])
+            gestor_filtro_det = st.multiselect(
+                "Gestor",
+                options=gestores_disp,
+                default=[],
+                key="gestor_filtro_detalhado"
+            )
+        else:
+            gestor_filtro_det = []
+    
+    with col3:
+        faixa_prazo_filtro = st.multiselect(
+            "Faixa de Prazo",
+            options=['Até 6 meses', '6-12 meses', '1-2 anos', '2-5 anos', 'Acima de 5 anos'],
+            default=[],
+            key="prazo_filtro_detalhado"
+        )
+    
+    # Aplicar filtros
+    df_detalhado_filtrado = df_analise.copy()
+    
+    if status_filtro_det:
+        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['status'].isin(status_filtro_det)]
+    
+    if gestor_filtro_det and 'Gestor(a)' in df_detalhado_filtrado.columns:
+        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['Gestor(a)'].isin(gestor_filtro_det)]
+    
+    if faixa_prazo_filtro:
+        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['Faixa de Prazo'].isin(faixa_prazo_filtro)]
+    
+    # Exibir resultados
+    st.markdown(f"### Resultados: {len(df_detalhado_filtrado)} contratos")
+    
+    if len(df_detalhado_filtrado) > 0:
+        # Selecionar colunas para exibição
+        colunas_exibir = [
+            'numeroContrato', 'nomeRazaoSocialFornecedor', 'valorGlobal',
+            'Valor Empenhado', 'Valor Pago', '% Empenhado', '% Pago',
+            'Dias de Vigência', 'Dias até Vencimento', '% Tempo Decorrido', 'status'
+        ]
+        
+        if 'Gestor(a)' in df_detalhado_filtrado.columns:
+            colunas_exibir.append('Gestor(a)')
+        if 'Centro de Custo' in df_detalhado_filtrado.columns:
+            colunas_exibir.append('Centro de Custo')
+        
+        # Filtrar apenas colunas que existem
+        colunas_exibir = [col for col in colunas_exibir if col in df_detalhado_filtrado.columns]
+        
+        df_resultado_detalhado = df_detalhado_filtrado[colunas_exibir].copy()
+        df_resultado_detalhado = df_resultado_detalhado.sort_values('Dias até Vencimento')
+        
+        st.dataframe(df_resultado_detalhado.head(100), width='stretch', height=500)
+        st.info(f"Exibindo primeiros 100 de {len(df_resultado_detalhado)} registros")
+        
+        # Download
+        csv = df_resultado_detalhado.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Baixar resultados completos (CSV)",
+            data=csv,
+            file_name=f"analise_detalhada_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            key="download_detalhado"
+        )
+    else:
+        st.info("Nenhum contrato encontrado com os filtros selecionados")
 
 # Rodapé
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666; padding: 20px;'>
-        <p><strong>Portal Financeiro TRF5</strong></p>
-        <p>Sistema de Acompanhamento e Análise de Gestão Orçamentária</p>
+        <p><strong>Justiça Federal do Ceará - TRF5</strong></p>
+        <p>Painel Executivo de Contratos, Orçamento e Financeiro</p>
         <p style='font-size: 12px;'>Desenvolvido para análise e transparência na gestão de recursos públicos</p>
     </div>
     """,
