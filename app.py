@@ -74,7 +74,7 @@ def header_banner():
     draw.text((texto_x, texto_y),texto,fill=(255,255,255,255),font=font)
     return banner
 
-st.image(header_banner(),width='stretch')
+st.image(header_banner(), use_container_width=True)
 
 # Função para formatação brasileira
 def formatar_real(valor):
