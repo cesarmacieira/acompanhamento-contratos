@@ -89,7 +89,6 @@ def formatar_percentual(valor):
         return "0,0%"
     return f"{valor:.1f}%".replace(".", ",")
 
-# CSS customizado - MELHORADO COM RESPONSIVIDADE
 st.markdown("""
     <style>
     .main {
@@ -286,18 +285,18 @@ def norm(s):
 
 # Criar abas principais
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "📋 Lista de Contratos", 
+    "📋 Lista de contratos", 
     "🚨 Alertas", 
     "📊 Análises dos contratos",
     "💰 Análise financeira",  
-    "💳 Dados Orçamentários", 
-    "🔗 Reconciliação de Dados",
-    "🔍 Buscador Detalhado",
-    "📈 Análise Detalhada de Contratos"])
+    "💳 Dados orçamentários", 
+    "❗ Inconsistências nos sistemas",
+    "🔍 Buscador detalhado",
+    "📈 Análise detalhada de contratos"])
 
 # ==================== ABA 1: LISTA DE CONTRATOS ====================
 with tab1:
-    st.subheader("Lista Geral de Contratos")
+    st.subheader("Lista geral de contratos")
     c1, c2, c3, c4 = st.columns(4)
     fornecedor = c1.multiselect("Fornecedor",sorted(df["nomeRazaoSocialFornecedor"].dropna().unique()))
     unidade = c2.multiselect("Unidade realizadora",sorted(df["nomeUnidadeRealizadoraCompra"].dropna().unique()))
@@ -351,17 +350,17 @@ with tab1:
 
 # ==================== ABA 2: ALERTAS ====================
 with tab2:
-    st.subheader("Alertas de Prazo e Risco")
+    st.subheader("Alertas de prazo e risco")
     v30 = df[(df["dataVigenciaFinal"] >= hoje) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=30))]
     v60 = df[(df["dataVigenciaFinal"] > hoje + timedelta(days=30)) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=60))]
     v90 = df[(df["dataVigenciaFinal"] > hoje + timedelta(days=60)) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=90))]
     vencidos = df[df["dataVigenciaFinal"] < hoje]
     vigentes = df[df["dataVigenciaFinal"] >= hoje]
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total de contratos", len(df))
+    c1.metric("Quantidade total de contratos", len(df))
     c2.metric("Contratos vigentes", len(vigentes))
     c3.metric("Contratos vencidos", len(vencidos))
-    c4.metric("Percentual vencido", f"{(len(vencidos)/len(df)*100):.1f}%" if len(df) > 0 else "0%")
+    c4.metric("Percentual de contratos vencidos", f"{(len(vencidos)/len(df)*100):.1f}%" if len(df) > 0 else "0%")
     c5, c6, c7, c8 = st.columns(4)
     c5.metric("Vencendo em 30 dias", len(v30))
     c6.metric("Vencendo em 60 dias", len(v60))
@@ -464,27 +463,13 @@ with tab2:
     if len(contratos_risco) > 0:
         # Análise por categoria
         cat_risco = contratos_risco.groupby('nomeCategoria').agg({'numeroContrato': 'count', 'valorGlobal': 'sum', 'dataVigenciaFinal': 'min'}).reset_index()
-        cat_risco.columns = ['Categoria', 'Quantidade', 'Valor Total', 'Data Mais Próxima']
+        cat_risco.columns = ['Categoria', 'Quantidade', 'Valor total', 'Data mais próxima']
         cat_risco = cat_risco.sort_values('Quantidade', ascending=False)
-
-        st.write(cat_risco)
-        
-        # Métricas resumo
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Quantidade de categorias em risco", cat_risco['Quantidade'].sum())
-        with col2:
-            st.metric("Categoria Mais Crítica", cat_risco.iloc[0]['Categoria'] if len(cat_risco) > 0 else "N/A")
-        with col3:
-            st.metric("Contratos nessa Categoria", int(cat_risco.iloc[0]['Quantidade']) if len(cat_risco) > 0 else 0)
-        with col4:
-            st.metric("Valor Total em Risco", formatar_real(cat_risco['Valor Total'].sum()))
         
         # Gráfico de categorias
         col1, col2 = st.columns(2)
-        
         with col1:
-            st.markdown("### Quantidade de Contratos")
+            st.markdown("### Quantidade de contratos por categoria")
             top_cat_qtd = cat_risco
             fig_cat_qtd = go.Figure()
             fig_cat_qtd.add_trace(go.Bar(x=top_cat_qtd['Quantidade'], y=top_cat_qtd['Categoria'], orientation='h',
@@ -493,20 +478,36 @@ with tab2:
             st.plotly_chart(fig_cat_qtd, use_container_width=True)
         
         with col2:
-            st.markdown("### Valor Total")
-            top_cat_valor = cat_risco.nlargest(100, 'Valor Total')
+            st.markdown("### Valor total por categoria")
+            top_cat_valor = cat_risco.nlargest(100, 'Valor total')
             fig_cat_valor = go.Figure()
-            fig_cat_valor.add_trace(go.Bar(x=top_cat_valor['Valor Total'], y=top_cat_valor['Categoria'], orientation='h',
-                marker_color='#ffc107', text=top_cat_valor['Valor Total'].apply(lambda x: formatar_real(x)), textposition='auto'))
-            fig_cat_valor.update_layout(xaxis_title="Valor Total (R$)", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
+            fig_cat_valor.add_trace(go.Bar(x=top_cat_valor['Valor total'], y=top_cat_valor['Categoria'], orientation='h',
+                marker_color='#ffc107', text=top_cat_valor['Valor total'].apply(lambda x: formatar_real(x)), textposition='auto'))
+            fig_cat_valor.update_layout(xaxis_title="Valor total (R$)", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
             st.plotly_chart(fig_cat_valor, use_container_width=True)
         
         # Tabela com detalhes
-        st.markdown("### 📋 Detalhamento por Categoria")
-        cat_display = cat_risco.copy()
-        cat_display['Valor Total'] = cat_display['Valor Total'].apply(formatar_real)
-        cat_display['Data Mais Próxima'] = pd.to_datetime(cat_display['Data Mais Próxima']).dt.strftime('%d/%m/%Y')
-        st.dataframe(cat_display, use_container_width=True)
+        hoje = pd.Timestamp.today().normalize()
+
+        contratos_display = contratos_risco.copy()
+        contratos_display['Dias até vencimento'] = (pd.to_datetime(contratos_display['dataVigenciaFinal']) - hoje).dt.days
+        contratos_display['Risco de vencimento'] = contratos_display['Dias até vencimento'].apply(lambda x: '🔴 Crítico' if x <= 30 else '🟡 Atenção' if x <= 90 else '🟢 Controlado')
+
+        contratos_display['valorGlobal'] = contratos_display['valorGlobal'].apply(formatar_real)
+        contratos_display['dataVigenciaFinal'] = pd.to_datetime(contratos_display['dataVigenciaFinal']).dt.strftime('%d/%m/%Y')
+
+        contratos_display = contratos_display.rename(columns={
+            'numeroContrato': 'Contrato',
+            'nomeCategoria': 'Categoria',
+            'valorGlobal': 'Valor do contrato',
+            'dataVigenciaFinal': 'Data final'
+        })
+
+        contratos_display = contratos_display[['Contrato','Categoria','Valor do contrato','Data final','Dias até vencimento','Risco de vencimento']]
+        with st.expander("Ver detalhes", expanded=False):
+            st.dataframe(contratos_display.sort_values('Dias até vencimento').reset_index(drop=True),
+                use_container_width=True)
+
     else:
         st.success("✅ Não há contratos em risco de vencimento nos próximos 90 dias!")
     
@@ -514,28 +515,24 @@ with tab2:
 with tab3:
     st.subheader("Análises dos contratos")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total de contratos", len(df))
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Quantidade total de contratos", len(df))
     c2.metric("Contratos vigentes", len(df[df["status"] == "Vigente"]))
     c3.metric("Contratos vencidos", len(df[df["status"] == "Vencido"]))
-    c4.metric("Valor total", f"R$ {df['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c5.metric("Valor médio", f"R$ {df['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    c4.metric("Percentual de contratos vigentes", f'{(len(df[df["status"] == "Vigente"]) / len(df) * 100):.1f}%' if len(df) > 0 else "0%")
     
-    c6, c7, c8, c9, c10 = st.columns(5)
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Valor total", f"R$ {df['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c6.metric("Valor vigente", f"R$ {df[df['status']=='Vigente']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c7.metric("Valor vencido", f"R$ {df[df['status']=='Vencido']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c8.metric("Fornecedores únicos", df["nomeRazaoSocialFornecedor"].nunique())
-    c9.metric("Categorias ativas", df["nomeCategoria"].nunique())
-    c10.metric("Modalidades usadas", df["nomeModalidadeCompra"].nunique())
     st.divider()
 
     # ============ EVOLUÇÃO TEMPORAL ============
     st.markdown("## 📈 Evolução Temporal")
-    
     evolucao = df.groupby("ano").agg(contratos=("numeroContrato", "count"),valor=("valorGlobal", "sum")).reset_index()
     
     col1, col2 = st.columns(2)
-    
     with col1: 
         st.markdown("### Contratos por ano")
         fig=px.bar(evolucao,x="ano",y="contratos",labels={"ano":"Ano","contratos":"Quantidade"})
@@ -552,22 +549,21 @@ with tab3:
         st.caption(f"Média anual: R$ {evolucao['valor'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     
     # Comparação ano a ano
-    st.markdown("### 📊 Comparação Detalhada por Ano")
     evolucao["var_contratos_%"] = evolucao["contratos"].pct_change() * 100
     evolucao["var_valor_%"] = evolucao["valor"].pct_change() * 100
     evolucao["ticket_medio"] = evolucao["valor"] / evolucao["contratos"]
     
     # Renomear colunas
     evolucao_display = evolucao.copy()
-    evolucao_display.columns = ['Ano', 'Contratos', 'Valor', 'Variação Contratos %', 'Variação Valor %', 'Ticket Médio']
+    evolucao_display.columns = ['Ano', 'Contratos', 'Valor', 'Variação da quantidade de contratos em relação ao ano anterior (%)', 
+                                'Variação dos valores dos contratos em relação ao ano anterior %', 'Ticket médio']
     
-    with st.expander("📋 Ver Tabela Detalhada - Comparação por Ano", expanded=False):
-        st.dataframe(evolucao_display.style.format({
-            "Valor": "R$ {:,.2f}",
-            "Variação Contratos %": "{:.1f}%",
-            "Variação Valor %": "{:.1f}%",
-            "Ticket Médio": "R$ {:,.2f}"
-        }), use_container_width=True)
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(evolucao_display.style.format({"Valor": "R$ {:,.2f}",
+        "Variação da quantidade de contratos em relação ao ano anterior (%)": "{:.1f}%",
+        "Variação dos valores dos contratos em relação ao ano anterior %": "{:.1f}%",
+        "Ticket médio": "R$ {:,.2f}"}), use_container_width=True)
+
     st.divider()
 
     # ============ ANÁLISE POR STATUS ============
@@ -575,85 +571,72 @@ with tab3:
     
     status_analise = df.groupby("status").agg(quantidade=("numeroContrato", "count"),
             valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"),
-            valor_maximo=("valorGlobal", "max"), valor_minimo=("valorGlobal", "min")).reset_index()
+            valor_minimo=("valorGlobal", "min"), valor_maximo=("valorGlobal", "max")).reset_index()
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("### Quantidade por status")
-        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
+        st.markdown("### Quantidade de contratos por status")
+        st.plotly_chart(px.bar(status_analise,x="status",y="quantidade",
+                               labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
 
     with col2:
-        st.markdown("### Valor total por status")
+        st.markdown("### Valor total dos contratos por status")
         fig_total = px.bar(status_analise,x="status",y="valor_total",labels={"status":"Status","valor_total":"Valor total (R$)"})
-        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_total,use_container_width=True)
+        fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True)
+        st.plotly_chart(fig_total,use_container_width=True)
 
     with col3:
-        st.markdown("### Ticket médio por status")
+        st.markdown("### Ticket médio dos contratos por status")
         fig_medio = px.bar(status_analise,x="status",y="valor_medio",labels={"status":"Status","valor_medio":"Valor médio (R$)"})
-        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_medio,use_container_width=True)
+        fig_medio.update_yaxes(tickprefix="R$ ",separatethousands=True)
+        st.plotly_chart(fig_medio,use_container_width=True)
+    
+    status_analise.columns = ['Status', 'Quantidade de contratos', 'Valor total', 'Valor médio', 'Valor mínimo', 'Valor máximo']
         
-    with st.expander("📋 Ver Tabela Detalhada - Análise por Status", expanded=False):
-        st.dataframe(status_analise.style.format({
-            "valor_total": "R$ {:,.2f}",
-            "valor_medio": "R$ {:,.2f}",
-            "valor_maximo": "R$ {:,.2f}",
-            "valor_minimo": "R$ {:,.2f}"
-        }), use_container_width=True)
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(status_analise.style.format({"Valor total": "R$ {:,.2f}", "Valor médio": "R$ {:,.2f}",
+            "Valor mínimo": "R$ {:,.2f}", "Valor máximo": "R$ {:,.2f}"}), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR CATEGORIA ============
     st.markdown("## 🏢 Análise por Categoria")
-    
-    cat_analise = df.groupby("nomeCategoria").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        valor_medio=("valorGlobal", "mean"),
+    cat_analise = df.groupby("nomeCategoria").agg(quantidade=("numeroContrato", "count"),
+        valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"),
         vigentes=("status", lambda x: (x == "Vigente").sum()),
-        vencidos=("status", lambda x: (x == "Vencido").sum())
-    ).reset_index().sort_values("valor_total", ascending=False)
-    
+        vencidos=("status", lambda x: (x == "Vencido").sum())).reset_index().sort_values("valor_total", ascending=False)
     cat_analise["perc_vigentes"] = (cat_analise["vigentes"] / cat_analise["quantidade"] * 100).round(1)
-    
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown("### Top 10 categorias - Quantidade")
+        st.markdown("### Quantidade de contratos por categoria")
         top_cat_qtd = cat_analise.head(10).sort_values("quantidade")
-        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),use_container_width=True)
-
+        st.plotly_chart(px.bar(top_cat_qtd,x="quantidade",y="nomeCategoria",orientation="h",
+                               labels={"quantidade":"Quantidade","nomeCategoria":"Categoria"}),use_container_width=True)
     with col2:
-        st.markdown("### Top 10 categorias - Valor")
+        st.markdown("### Valor dos contratos por categoria")
         top_cat_valor = cat_analise.head(10).sort_values("valor_total")
-        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"}); fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_valor,use_container_width=True)
+        fig_valor = px.bar(top_cat_valor,x="valor_total",y="nomeCategoria",orientation="h",
+                           labels={"valor_total":"Valor (R$)","nomeCategoria":"Categoria"})
+        fig_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
+        st.plotly_chart(fig_valor,use_container_width=True)
 
-    
-    st.markdown("### Detalhamento Completo por Categoria")
     # Renomear colunas
     cat_display = cat_analise.copy()
-    cat_display.columns = ['Categoria', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Vencidos', '% Vigentes']
-    
-    with st.expander("📋 Ver Tabela Detalhada - Análise por Categoria", expanded=False):
-        st.dataframe(cat_display.reset_index(drop=True).style.format({
-            "Valor Total": "R$ {:,.2f}",
-            "Valor Médio": "R$ {:,.2f}",
-            "% Vigentes": "{:.1f}%"
-        }), use_container_width=True)
+    cat_display.columns = ['Categoria', 'Quantidade de contratos', 'Valor total', 'Valor médio', 'Vigentes', 'Vencidos', '% Vigentes']
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(cat_display.reset_index(drop=True).style.format({"Valor total": "R$ {:,.2f}","Valor médio": "R$ {:,.2f}",
+            "% Vigentes": "{:.1f}%"}), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR FORNECEDOR ============
     st.markdown("## 🏆 Análise por Fornecedor")
     
-    forn_analise = df.groupby("nomeRazaoSocialFornecedor").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        valor_medio=("valorGlobal", "mean"),
-        vigentes=("status", lambda x: (x == "Vigente").sum()),
-        categorias=("nomeCategoria", "nunique")
-    ).reset_index().sort_values("valor_total", ascending=False)
+    forn_analise = df.groupby("nomeRazaoSocialFornecedor").agg(quantidade=("numeroContrato", "count"),
+        valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"), vigentes=("status", lambda x: (x == "Vigente").sum()),
+        categorias=("nomeCategoria", "nunique")).reset_index().sort_values("valor_total", ascending=False)
     
     forn_analise["participacao_%"] = (forn_analise["valor_total"] / forn_analise["valor_total"].sum() * 100).round(2)
-    forn_analise.columns = ['Fornecedor', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Categorias', 'Participação %']
+    forn_analise.columns = ['Fornecedor', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Categorias', 'Frequência relativa %']
     
     # Função para quebrar linhas longas
     def quebrar_linha(texto, max_chars=40):
@@ -674,158 +657,126 @@ with tab3:
                 tamanho_atual = len(palavra)
         if linha_atual:
             linhas.append(" ".join(linha_atual))
-        return "\n".join(linhas[:2])  # Máximo 2 linhas
+        return "\n".join(linhas[:2]) 
     
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown("### Top 15 Fornecedores - Valor Total")
+        st.markdown("### Quantidade de contratos por categoria")
+        top_forn_qtd = forn_analise.head(15).copy()
+        top_forn_qtd["nome_curto"] = top_forn_qtd["Fornecedor"].apply(quebrar_linha)
+        top_forn_qtd = top_forn_qtd.sort_values("Quantidade")
+        st.plotly_chart(px.bar(top_forn_qtd,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Fornecedor"}),use_container_width=True)
+    with col2:
+        st.markdown("### Valor dos contratos por fornecedor")
         top_forn = forn_analise.head(15).copy()
         top_forn["nome_curto"] = top_forn["Fornecedor"].apply(quebrar_linha)
         top_forn = top_forn.sort_values("Valor Total")
         fig_forn_valor = px.bar(top_forn,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Fornecedor"})
         fig_forn_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
         st.plotly_chart(fig_forn_valor,use_container_width=True)
-
-    with col2:
-        st.markdown("### Top 15 Fornecedores - Quantidade")
-        top_forn_qtd = forn_analise.head(15).copy()
-        top_forn_qtd["nome_curto"] = top_forn_qtd["Fornecedor"].apply(quebrar_linha)
-        top_forn_qtd = top_forn_qtd.sort_values("Quantidade")
-        st.plotly_chart(px.bar(top_forn_qtd,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Fornecedor"}),use_container_width=True)
     
     # Detalhamento completo por fornecedor
-    st.markdown("### Detalhamento Completo por Fornecedor")
-    with st.expander("📋 Ver Tabela Detalhada - Análise por Fornecedor", expanded=False):
-        st.dataframe(forn_analise.reset_index(drop=True).style.format({
-            "Valor Total": "R$ {:,.2f}",
-            "Valor Médio": "R$ {:,.2f}",
-            "Participação %": "{:.2f}%"
-        }), use_container_width=True)
-    
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(forn_analise.reset_index(drop=True).style.format({"Valor Total": "R$ {:,.2f}",
+            "Valor Médio": "R$ {:,.2f}", "Frequência relativa %": "{:.2f}%"}), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR MODALIDADE ============
     st.markdown("## 📋 Análise por Modalidade de Compra")
-    
-    mod_analise = df.groupby("nomeModalidadeCompra").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        valor_medio=("valorGlobal", "mean")
-    ).reset_index().sort_values("valor_total", ascending=False)
-    
+    mod_analise = df.groupby("nomeModalidadeCompra").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"), 
+        valor_medio=("valorGlobal", "mean")).reset_index().sort_values("valor_total", ascending=False)
     mod_analise["participacao_%"] = (mod_analise["valor_total"] / mod_analise["valor_total"].sum() * 100).round(2)
-    
-    # RENOMEAR COLUNAS ANTES DE USAR
-    mod_analise.columns = ['Modalidade', 'Quantidade', 'Valor Total', 'Valor Médio', 'Participação %']
-    
+    mod_analise.columns = ['Modalidade', 'Quantidade', 'Valor total', 'Valor médio', 'Frequência relativa %']
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown("### Distribuição por Modalidade")
         st.plotly_chart(px.bar(mod_analise,x="Modalidade",y="Quantidade",labels={"Modalidade":"Modalidade","Quantidade":"Quantidade"}),use_container_width=True)
-
     with col2:
         st.markdown("### Valor por Modalidade")
-        fig_mod = px.bar(mod_analise,x="Modalidade",y="Valor Total",labels={"Modalidade":"Modalidade","Valor Total":"Valor (R$)"})
+        fig_mod = px.bar(mod_analise,x="Modalidade",y="Valor total",labels={"Modalidade":"Modalidade","Valor total":"Valor (R$)"})
         fig_mod.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_mod,use_container_width=True)
-
-    
-    st.dataframe(mod_analise.reset_index(drop=True).style.format({
-        "Valor Total": "R$ {:,.2f}",
-        "Valor Médio": "R$ {:,.2f}",
-        "Participação %": "{:.2f}%"
-    }), use_container_width=True)
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(mod_analise.reset_index(drop=True).style.format({"Valor total": "R$ {:,.2f}",
+            "Valor médio": "R$ {:,.2f}", "Frequência relativa %": "{:.2f}%"}), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE POR TIPO ============
     st.markdown("## 📑 Análise por Tipo de Contrato")
-    
-    tipo_analise = df.groupby("nomeTipo").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        valor_medio=("valorGlobal", "mean")
-    ).reset_index().sort_values("valor_total", ascending=False)
-    
-    # RENOMEAR COLUNAS ANTES DE USAR
-    tipo_analise.columns = ['Tipo', 'Quantidade', 'Valor Total', 'Valor Médio']
-    
+    tipo_analise = df.groupby("nomeTipo").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"),
+        valor_medio=("valorGlobal", "mean")).reset_index().sort_values("valor_total", ascending=False)
+    tipo_analise.columns = ['Tipo', 'Quantidade', 'Valor total', 'Valor médio']
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown("### Quantidade por Tipo")
         st.plotly_chart(px.bar(tipo_analise,x="Tipo",y="Quantidade",labels={"Tipo":"Tipo","Quantidade":"Quantidade"}),use_container_width=True)
-
     with col2:
         st.markdown("### Valor por Tipo")
-        fig_tipo = px.bar(tipo_analise,x="Tipo",y="Valor Total",labels={"Tipo":"Tipo","Valor Total":"Valor (R$)"})
+        fig_tipo = px.bar(tipo_analise,x="Tipo",y="Valor total",labels={"Tipo":"Tipo","Valor total":"Valor (R$)"})
         fig_tipo.update_yaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_tipo,use_container_width=True)
-
-    
-    st.dataframe(tipo_analise.style.format({
-        "Valor Total": "R$ {:,.2f}",
-        "Valor Médio": "R$ {:,.2f}"
-    }), use_container_width=True)
-    st.divider()
-
-    # ============ ANÁLISE CRUZADA ============
-    st.markdown("## 🔀 Análises Cruzadas")
-    
-    st.markdown("### Categoria × Status")
-    cat_status = pd.crosstab(df["nomeCategoria"], df["status"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
-    # Formatar valores manualmente
-    cat_status_display = cat_status.copy()
-    for col in cat_status_display.columns:
-        cat_status_display[col] = cat_status_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    with st.expander("📋 Ver Tabela - Categoria × Status", expanded=False):
-        st.dataframe(cat_status_display, use_container_width=True)
-    
-    st.markdown("### Modalidade × Ano")
-    mod_ano = pd.crosstab(df["nomeModalidadeCompra"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
-    # Formatar valores manualmente
-    mod_ano_display = mod_ano.copy()
-    for col in mod_ano_display.columns:
-        mod_ano_display[col] = mod_ano_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    with st.expander("📋 Ver Tabela - Modalidade × Ano", expanded=False):
-        st.dataframe(mod_ano_display, use_container_width=True)
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(tipo_analise.reset_index(drop=True).style.format({"Valor total": "R$ {:,.2f}",
+            "Valor médio": "R$ {:,.2f}"}), use_container_width=True)
     st.divider()
 
     # ============ ANÁLISE DE UNIDADES ============
     st.markdown("## 🏛️ Análise por Unidade Realizadora")
     
-    unid_analise = df.groupby("nomeUnidadeRealizadoraCompra").agg(
-        quantidade=("numeroContrato", "count"),
-        valor_total=("valorGlobal", "sum"),
-        fornecedores=("nomeRazaoSocialFornecedor", "nunique"),
-        categorias=("nomeCategoria", "nunique")
-    ).reset_index().sort_values("valor_total", ascending=False)
+    unid_analise = df.groupby("nomeUnidadeRealizadoraCompra").agg(quantidade=("numeroContrato", "count"),
+        valor_total=("valorGlobal", "sum"), fornecedores=("nomeRazaoSocialFornecedor", "nunique"),
+        categorias=("nomeCategoria", "nunique")).reset_index().sort_values("valor_total", ascending=False)
     
-    # RENOMEAR COLUNAS ANTES DE USAR
-    unid_analise.columns = ['Unidade', 'Quantidade', 'Valor Total', 'Fornecedores', 'Categorias']
-    
+    unid_analise.columns = ['Unidade', 'Quantidade', 'Valor total', 'Fornecedores', 'Categorias']
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown("### Top 10 Unidades - Contratos")
-        top_unid = unid_analise.head(10).copy()
+        st.markdown("### Quantidade de contratos por unidade")
+        top_unid = unid_analise.copy()
         top_unid["nome_curto"] = top_unid["Unidade"].apply(quebrar_linha)
         top_unid = top_unid.sort_values("Quantidade")
         st.plotly_chart(px.bar(top_unid,x="Quantidade",y="nome_curto",orientation="h",labels={"Quantidade":"Quantidade","nome_curto":"Unidade"}),use_container_width=True)
-
     with col2:
-        st.markdown("### Top 10 Unidades - Valor")
-        top_unid_valor = unid_analise.head(10).copy()
+        st.markdown("### Valor dos contratos por unidade")
+        top_unid_valor = unid_analise.copy()
         top_unid_valor["nome_curto"] = top_unid_valor["Unidade"].apply(quebrar_linha)
-        top_unid_valor = top_unid_valor.sort_values("Valor Total")
-        fig_unid = px.bar(top_unid_valor,x="Valor Total",y="nome_curto",orientation="h",labels={"Valor Total":"Valor (R$)","nome_curto":"Unidade"})
+        top_unid_valor = top_unid_valor.sort_values("Valor total")
+        fig_unid = px.bar(top_unid_valor,x="Valor total",y="nome_curto",orientation="h",labels={"Valor total":"Valor (R$)","nome_curto":"Unidade"})
         fig_unid.update_xaxes(tickprefix="R$ ",separatethousands=True); st.plotly_chart(fig_unid,use_container_width=True)
 
-    
-    with st.expander("📋 Ver Tabela Detalhada - Top 15 Unidades", expanded=False):
-        st.dataframe(unid_analise.head(15).style.format({
-            "Valor Total": "R$ {:,.2f}"
-        }), use_container_width=True)
+    with st.expander("Ver detalhes", expanded=False):
+        st.dataframe(unid_analise.style.format({"Valor total": "R$ {:,.2f}"}), use_container_width=True)
     st.divider()
+
+    # ============ ANÁLISE CRUZADA ============
+    st.markdown("## 🔀 Análises comparativas por ano")
+    
+    st.markdown("### Categoria × Ano")
+    cat_ano = pd.crosstab(df["nomeCategoria"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
+
+    fig_cat_ano = go.Figure()
+    for categoria in cat_ano.index: 
+        fig_cat_ano.add_bar(x=cat_ano.columns, y=cat_ano.loc[categoria], name=categoria)
+    fig_cat_ano.update_layout(barmode="group", xaxis_title="Ano", yaxis_title="Valor (R$)", height=450)
+    st.plotly_chart(fig_cat_ano, use_container_width=True)
+
+    cat_ano_display = cat_ano.copy()
+    for col in cat_ano_display.columns: 
+        cat_ano_display[col] = cat_ano_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    with st.expander("Ver detalhes", expanded=False): 
+        st.dataframe(cat_ano_display, use_container_width=True)
+
+    st.markdown("### Modalidade × Ano")
+    mod_ano = pd.crosstab(df["nomeModalidadeCompra"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
+
+    fig_mod_ano = go.Figure()
+    for modalidade in mod_ano.index: 
+        fig_mod_ano.add_bar(x=mod_ano.columns, y=mod_ano.loc[modalidade], name=modalidade)
+    fig_mod_ano.update_layout(barmode="group", xaxis_title="Ano", yaxis_title="Valor (R$)", height=450)
+    st.plotly_chart(fig_mod_ano, use_container_width=True)
+
+    mod_ano_display = mod_ano.copy()
+    for col in mod_ano_display.columns: 
+        mod_ano_display[col] = mod_ano_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    with st.expander("Ver detalhes", expanded=False): 
+        st.dataframe(mod_ano_display, use_container_width=True)
 
 # ==================== ABA 4: VISÃO GERAL & FILTROS ====================
 with tab4:
@@ -1920,10 +1871,9 @@ with tab5:
                 st.dataframe(df_rp_display.head(100), use_container_width=True, height=400)
                 st.info(f"📊 Exibindo primeiros 100 registros")
 
-
 # ==================== ABA 8: RECONCILIAÇÃO DE DADOS ====================
 with tab6:
-    st.header("🔗 Reconciliação de Dados")
+    st.header("❗ Inconsistências nos dados dos sistemas")
     st.markdown("""
     Esta aba compara os dados do **ComprasNet** com os **dados de empenhos, pré-empenhos, disponível e restos a pagar** usando o **número do contrato** como chave de relacionamento.
     
