@@ -2,18 +2,20 @@ import requests
 import json
 import time
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+load_dotenv()
+url_comprasnet = os.environ.get('URL_COMPRASNET')
 
 class BuscadorContratos:
     """
     Classe para buscar contratos na API de Dados Abertos do governo federal
     """
     def __init__(self):
-        self.base_url = "https://dadosabertos.compras.gov.br/modulo-contratos/1_consultarContratos"
+        self.base_url = url_comprasnet
         self.headers = {'accept': '*/*','User-Agent': 'Python Script - Busca Contratos'}
     
-    def buscar_contratos(self, orgao_codigo, unidade_gestora, 
-                        data_inicio=None, data_fim=None,
-                        tamanho_pagina=500):
+    def buscar_contratos(self, orgao_codigo, unidade_gestora, data_inicio=None, data_fim=None, tamanho_pagina=500):
         """
         Busca todos os contratos de um órgão e unidade gestora específicos
         
