@@ -76,20 +76,7 @@ def header_banner():
 
 st.image(header_banner(), use_container_width=True)
 
-# Função para formatação brasileira
-def formatar_real(valor):
-    """Formata valor para Real brasileiro (R$ 1.234.567,89)"""
-    if pd.isna(valor):
-        return "R$ 0,00"
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-def formatar_percentual(valor):
-    """Formata percentual no padrão brasileiro"""
-    if pd.isna(valor) or np.isinf(valor):
-        return "0,0%"
-    return f"{valor:.1f}%".replace(".", ",")
-
-st.markdown("""
+st.markdown('''
     <style>
     .main {
         padding: 0rem 1rem;
@@ -170,7 +157,21 @@ st.markdown("""
         margin-top: 20px;
     }
     </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
+
+
+# Função para formatação brasileira
+def formatar_real(valor):
+    """Formata valor para Real brasileiro (R$ 1.234.567,89)"""
+    if pd.isna(valor):
+        return "R$ 0,00"
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def formatar_percentual(valor):
+    """Formata percentual no padrão brasileiro"""
+    if pd.isna(valor) or np.isinf(valor):
+        return "0,0%"
+    return f"{valor:.1f}%".replace(".", ",")
 
 # Função para carregar dados do resumo
 @st.cache_data
@@ -1056,7 +1057,7 @@ with tab4:
                                         
             st.markdown("---")
             st.subheader("Valores por ano")
-            df_centros['A Pagar'] = df_centros['Empenhado'] - df_gestores['Valor Empenhos Pagos']
+            df_centros['A Pagar'] = df_centros['Empenhado'] - df_centros['Valor Empenhos Pagos']
             centros_ano_agg = df_centros.groupby(['Ano', 'Centro de Custo']).agg({'Limite': 'sum', 'Empenhado': 'sum',
                 'Valor Empenhos Pagos': 'sum', 'Pré-empenhado': 'sum', 'A Pagar': 'sum'}).reset_index()
             centros_ano_agg['Disponível'] = (centros_ano_agg['Limite'] - centros_ano_agg['Pré-empenhado'] - centros_ano_agg['Empenhado'])
