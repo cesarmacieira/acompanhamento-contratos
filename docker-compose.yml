@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  streamlit-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: streamlit-app:latest
+    container_name: streamlit-app
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
