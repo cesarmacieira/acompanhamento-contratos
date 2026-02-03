@@ -21,27 +21,31 @@ def header_banner():
     draw=ImageDraw.Draw(banner)
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     FONT_PATH = os.path.join(BASE_DIR, "fonts/DejaVuSans-Bold.ttf")
-
     try:
         font = ImageFont.truetype(FONT_PATH, 45)
     except Exception as e:
         st.error(f"Erro ao carregar fonte: {e}")
         font = ImageFont.load_default()
 
-
     # LOGO PRINCIPAL À ESQUERDA
-    logo_esquerda="logos/logo_horizontal_branca.png"
+    logo_esquerda = os.path.join(BASE_DIR, "logos", "logo_horizontal_branca.png")
     im_left=Image.open(logo_esquerda).convert("RGBA")
     h_left=80
     w_left=int(im_left.size[0]*h_left/im_left.size[1])
     im_left=im_left.resize((w_left,h_left))
     left_x=32
     banner.alpha_composite(im_left,(left_x,(H-h_left)//2))
-
-    # LOGOS À DIREITA (calcular largura total)
-    logos_direita=["logos/logo_Justica_Federal_5Regiao_branca.png", 
-                   "logos/logo_Justica_Federal_Ceara_branca.png", 
-                   "logos/Logo_PNUD_branca.png"]
+    logos_direita_relativos = [
+        ("logos", "logo_Justica_Federal_5Regiao_branca.png"),
+        ("logos", "logo_Justica_Federal_Ceara_branca.png"),
+        ("logos", "Logo_PNUD_branca.png")]
+    logos_direita = []
+    for parts in logos_direita_relativos:
+        path = os.path.join(BASE_DIR, *parts)
+        if os.path.exists(path):
+            logos_direita.append(path)
+        else:
+            st.warning(f"Logo não encontrada: {path}")
     gap=28
     total_w=0
     resized=[]
@@ -159,7 +163,6 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 
-
 # Função para formatação brasileira
 def formatar_real(valor):
     """Formata valor para Real brasileiro (R$ 1.234.567,89)"""
@@ -179,8 +182,12 @@ def load_resumo_data():
     # try:
     #     df = pd.read_parquet('dados/Dados resumo centro de custos.parquet')
     # except:
-    df = pd.read_excel('dados/Dados resumo centro de custos.xlsx')
-    
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    arquivo_resumo = os.path.join(BASE_DIR, "dados", "Dados resumo centro de custos.xlsx")
+    if not os.path.exists(arquivo_resumo):
+        st.error(f"Arquivo não encontrado: {arquivo_resumo}")
+        return pd.DataFrame()
+    df = pd.read_excel(arquivo_resumo)
     # Converter Ano para string
     df['Ano'] = df['Ano'].astype(str)
     
@@ -209,7 +216,12 @@ def load_resumo_data():
 @st.cache_data
 def load_empenhos_data():
     # try:
-    df = pd.read_parquet('dados/Dados empenhos.parquet')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    arquivo_resumo = os.path.join(BASE_DIR, "dados", "Dados empenhos.parquet")
+    if not os.path.exists(arquivo_resumo):
+        st.error(f"Arquivo não encontrado: {arquivo_resumo}")
+        return pd.DataFrame()
+    df = pd.read_parquet(arquivo_resumo)
     # except:
     #     df = pd.read_excel('dados/Dados empenhos.xlsx')
     
@@ -228,7 +240,12 @@ def load_empenhos_data():
 @st.cache_data
 def load_pre_empenhos_data():
     # try:
-    df = pd.read_parquet('dados/Dados pré empenhos.parquet')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    arquivo_resumo = os.path.join(BASE_DIR, "dados", "Dados pré empenhos.parquet")
+    if not os.path.exists(arquivo_resumo):
+        st.error(f"Arquivo não encontrado: {arquivo_resumo}")
+        return pd.DataFrame()
+    df = pd.read_parquet(arquivo_resumo)
     # except:
     #     df = pd.read_excel('dados/Dados pré empenhos.xlsx')
     df = df.rename(columns={'Processo.SEI': 'Processo SEI','Valor.Pré-Empenhado': 'Valor Pré-Empenhado'})
@@ -246,7 +263,12 @@ def load_pre_empenhos_data():
 @st.cache_data
 def load_restos_pagar_data():
     #try:
-    df = pd.read_parquet('dados/Dados restos a pagar.parquet')
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    arquivo_resumo = os.path.join(BASE_DIR, "dados", "Dados restos a pagar.parquet")
+    if not os.path.exists(arquivo_resumo):
+        st.error(f"Arquivo não encontrado: {arquivo_resumo}")
+        return pd.DataFrame()
+    df = pd.read_parquet(arquivo_resumo)
     #except:
     #    df = pd.read_excel('dados/Dados restos a pagar.xlsx')
     df = df.rename(columns={'Valor.RP.Processados.Inscritos': 'Valor RP Processados Inscritos',
@@ -900,7 +922,6 @@ with tab4:
             if valor_empenhado > 0:
                 perc_pago = (valor_pago / valor_empenhado * 100) if valor_empenhado > 0 else 0
                 perc_a_pagar = (valor_a_pagar / valor_empenhado * 100) if valor_empenhado > 0 else 0
-                import plotly.graph_objects as go
                 fig_emp_pago=go.Figure()
                 fig_emp_pago.add_trace(go.Bar(name='Pago',x=[valor_pago],y=['Empenho'],orientation='h',
                                               marker=dict(color='#00689D'),text=[f"Valor pago<br>{formatar_real(valor_pago)}<br>{perc_pago:.1f}%"],
