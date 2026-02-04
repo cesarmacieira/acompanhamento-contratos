@@ -996,7 +996,7 @@ with tab4:
             for col in ['Limite', 'Empenhado', 'Valor Empenhos Pagos', 'Pré-empenhado', 'Disponível', 'A Pagar']:
                 gestores_display[col] = gestores_display[col].apply(formatar_real)
             #gestores_display['% Execução'] = gestores_display['% Execução'].apply(formatar_percentual)
-            st.dataframe(gestores_display, use_container_width=True, height=400)
+            st.dataframe(gestores_display, use_container_width=True)
     with subtab3_fin:
         st.header("Análise por Centro de Custos")
         col1_f, col2_f, col3_f = st.columns(3)
@@ -1063,7 +1063,7 @@ with tab4:
             centros_display = centros_ano_agg.copy()
             for col in ['Limite', 'Empenhado', 'Valor Empenhos Pagos', 'Pré-empenhado', 'Disponível', 'A Pagar']:
                 centros_display[col] = centros_display[col].apply(formatar_real)
-            st.dataframe(centros_display, use_container_width=True, height=400)            
+            st.dataframe(centros_display, use_container_width=True)            
 
 # ==================== ABA 5: DADOS ORÇAMENTÁRIOS ====================
 with tab5:
@@ -1484,192 +1484,101 @@ with tab7:
             return 'Atenção (≤90 dias)'
         else:
             return 'Normal'
-    
     df_contratos['Alerta Vigência'] = df_contratos['Dias até Vencimento'].apply(classificar_alerta)
     
-    # ===== MÉTRICAS PRINCIPAIS =====
     col1, col2, col3, col4 = st.columns(4)
-    
     with col1:
         st.metric("Total Contratos", f"{len(df_contratos):,}")
-    
     with col2:
         vencidos = len(df_contratos[df_contratos['Alerta Vigência'] == 'Vencido'])
         st.metric("Vencidos", f"{vencidos:,}", delta_color="inverse")
-    
     with col3:
         criticos = len(df_contratos[df_contratos['Alerta Vigência'] == 'Crítico (≤30 dias)'])
         st.metric("Críticos (≤30d)", f"{criticos:,}", delta_color="inverse")
-    
     with col4:
         atencao = len(df_contratos[df_contratos['Alerta Vigência'] == 'Atenção (≤90 dias)'])
         st.metric("Atenção (≤90d)", f"{atencao:,}", delta_color="inverse")
-    
     st.markdown("---")
-    
-    # ===== TABS DE ALERTAS =====
+
     tab_vig, tab_gestor, tab_cc = st.tabs(["🚨 Alertas de Vigência", "👤 Por Gestor", "🏢 Por Centro de Custo"])
-    
-    # ===== TAB: ALERTAS DE VIGÊNCIA =====
     with tab_vig:
         st.subheader("Contratos com Alerta de Vigência")
-        
-        # Filtro
-        alertas_selecionados = st.multiselect(
-            "Filtrar por status:",
+        alertas_selecionados = st.multiselect("Filtrar por status:",
             options=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)', 'Normal', 'Sem Data'],
-            default=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)']
-        )
-        
+            default=['Crítico (≤30 dias)', 'Atenção (≤90 dias)'])
         if alertas_selecionados:
             df_filtrado = df_contratos[df_contratos['Alerta Vigência'].isin(alertas_selecionados)].copy()
             df_filtrado = df_filtrado.sort_values('Dias até Vencimento', na_position='last')
-            
-            # Para cada contrato, pegar gestores e CCs (podem ser múltiplos)
-            # Criar string com todos os gestores/CCs únicos deste contrato
             gestores_por_contrato = df_resumo.groupby('contrato_norm')['Gestor(a)'].apply(
-                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))
-            ).to_dict()
-            
+                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))).to_dict()
             cc_por_contrato = df_resumo.groupby('contrato_norm')['Centro de Custo'].apply(
-                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))
-            ).to_dict()
-            
+                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))).to_dict()
             df_filtrado['Gestores'] = df_filtrado['contrato_norm'].map(gestores_por_contrato)
             df_filtrado['Centros de Custo'] = df_filtrado['contrato_norm'].map(cc_por_contrato)
             
-            # Preparar para exibição
-            df_exibir = df_filtrado[[
-                'numeroContrato', 'nomeRazaoSocialFornecedor', 'Gestores', 'Centros de Custo',
+            df_exibir = df_filtrado[['numeroContrato', 'nomeRazaoSocialFornecedor', 'Gestores', 'Centros de Custo',
                 'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência',
-                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar'
-            ]].copy()
-            
-            # Formatar data
+                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar']].copy()
             df_exibir['dataVigenciaFinal'] = df_exibir['dataVigenciaFinal'].dt.strftime('%d/%m/%Y')
-            
-            # Renomear
-            df_exibir.columns = [
-                'Contrato', 'Fornecedor', 'Gestores', 'Centros de Custo',
-                'Vencimento', 'Dias', 'Alerta',
-                'Valor Global', 'Empenhado', 'Pago', 'A Pagar'
-            ]
-            
+            df_exibir.columns = ['Contrato', 'Fornecedor', 'Gestores', 'Centros de Custo',
+                'Vencimento', 'Dias', 'Alerta', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar']
             st.metric("Contratos Filtrados", f"{len(df_exibir):,}")
-            st.dataframe(df_exibir, use_container_width=True, height=500)
-            
-            # Download
+            df_exibir = df_exibir.reset_index(drop=True)
+            st.dataframe(df_exibir, use_container_width=True)
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                 df_exibir.to_excel(writer, index=False, sheet_name="Alertas")
             buffer.seek(0)
-            st.download_button(
-                "⬇️ Baixar Excel",
-                buffer,
-                f"alertas_vigencia_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-    
-    # ===== TAB: POR GESTOR =====
+            st.download_button("⬇️ Baixar Excel", buffer,
+                               f"Alertas vigência {datetime.now().strftime('%Y%m%d')}.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     with tab_gestor:
         st.subheader("Resumo por Gestor")
-        
-        # Trabalhar com df_resumo original, agrupando por gestor + contrato
-        # Depois somar por gestor
         df_gestor_contrato = df_resumo_comprasnet.groupby(['Gestor(a)', 'contrato_norm']).agg({
-            'valorGlobal': 'first',  # Valor global é o mesmo
+            'valorGlobal': 'first',
             'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-        }).reset_index()
+            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()
         
-        df_gestor_contrato['Valor a Pagar'] = (
-            df_gestor_contrato['Valor Empenhos Total'] - 
-            df_gestor_contrato['Valor Empenhos Pagos']
-        )
-        
-        # Merge com alertas
-        df_gestor_contrato = df_gestor_contrato.merge(
-            df_contratos[['contrato_norm', 'Alerta Vigência']], 
-            on='contrato_norm', 
-            how='left'
-        )
-        
-        # Agregar por gestor
-        df_por_gestor = df_gestor_contrato.groupby('Gestor(a)').agg({
-            'contrato_norm': 'count',
-            'valorGlobal': 'sum',
-            'Valor Empenhos Total': 'sum',
-            'Valor Empenhos Pagos': 'sum',
-            'Valor a Pagar': 'sum',
-            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()
-        }).reset_index()
-        
+        df_gestor_contrato['Valor a Pagar'] = (df_gestor_contrato['Valor Empenhos Total'] - df_gestor_contrato['Valor Empenhos Pagos'])
+        df_gestor_contrato = df_gestor_contrato.merge(df_contratos[['contrato_norm', 'Alerta Vigência']], 
+            on='contrato_norm', how='left')
+        df_por_gestor = df_gestor_contrato.groupby('Gestor(a)').agg({'contrato_norm': 'count',
+            'valorGlobal': 'sum', 'Valor Empenhos Total': 'sum', 'Valor Empenhos Pagos': 'sum', 'Valor a Pagar': 'sum', 
+            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()}).reset_index()
         df_por_gestor.columns = ['Gestor', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
         df_por_gestor = df_por_gestor.sort_values('Valor Global', ascending=False)
-        
-        st.dataframe(df_por_gestor, use_container_width=True, height=500)
-        
-        # Download
+        df_por_gestor = df_por_gestor.reset_index(drop=True)
+        st.dataframe(df_por_gestor, use_container_width=True)
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             df_por_gestor.to_excel(writer, index=False, sheet_name="Por Gestor")
         buffer.seek(0)
-        st.download_button(
-            "⬇️ Baixar Excel",
-            buffer,
-            f"resumo_por_gestor_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        st.download_button("⬇️ Baixar Excel", buffer, f"Resumo por gestor{datetime.now().strftime('%Y%m%d')}.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     
-    # ===== TAB: POR CENTRO DE CUSTO =====
     with tab_cc:
         st.subheader("Resumo por Centro de Custo")
-        
-        # Trabalhar com df_resumo original, agrupando por CC + contrato
         df_cc_contrato = df_resumo_comprasnet.groupby(['Centro de Custo', 'contrato_norm']).agg({
             'valorGlobal': 'first',
             'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-        }).reset_index()
-        
-        df_cc_contrato['Valor a Pagar'] = (
-            df_cc_contrato['Valor Empenhos Total'] - 
-            df_cc_contrato['Valor Empenhos Pagos']
-        )
-        
-        # Merge com alertas
-        df_cc_contrato = df_cc_contrato.merge(
-            df_contratos[['contrato_norm', 'Alerta Vigência']], 
-            on='contrato_norm', 
-            how='left'
-        )
-        
-        # Agregar por CC
-        df_por_cc = df_cc_contrato.groupby('Centro de Custo').agg({
-            'contrato_norm': 'count',
-            'valorGlobal': 'sum',
-            'Valor Empenhos Total': 'sum',
-            'Valor Empenhos Pagos': 'sum',
+            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()  
+        df_cc_contrato['Valor a Pagar'] = (df_cc_contrato['Valor Empenhos Total'] - df_cc_contrato['Valor Empenhos Pagos'])
+        df_cc_contrato = df_cc_contrato.merge(df_contratos[['contrato_norm', 'Alerta Vigência']], 
+            on='contrato_norm', how='left')
+        df_por_cc = df_cc_contrato.groupby('Centro de Custo').agg({'contrato_norm': 'count',
+            'valorGlobal': 'sum', 'Valor Empenhos Total': 'sum', 'Valor Empenhos Pagos': 'sum',
             'Valor a Pagar': 'sum',
-            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()
-        }).reset_index()
-        
+            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()}).reset_index()
         df_por_cc.columns = ['Centro de Custo', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
         df_por_cc = df_por_cc.sort_values('Valor Global', ascending=False)
-        
-        st.dataframe(df_por_cc, use_container_width=True, height=500)
-        
-        # Download
+        df_por_cc = df_por_cc.reset_index(drop=True)
+        st.dataframe(df_por_cc, use_container_width=True)
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             df_por_cc.to_excel(writer, index=False, sheet_name="Por Centro de Custo")
         buffer.seek(0)
-        st.download_button(
-            "⬇️ Baixar Excel",
-            buffer,
-            f"resumo_por_cc_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        st.download_button("⬇️ Baixar Excel", buffer, f"Resumo por centro de custo {datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Rodapé
 st.markdown("---")
