@@ -234,8 +234,6 @@ h2 {
 </style>
 """, unsafe_allow_html=True)
 
-
-
 # Função para formatação brasileira
 def formatar_real(valor):
     """Formata valor para Real brasileiro (R$ 1.234.567,89)"""
@@ -416,19 +414,26 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 with tab1:
     st.subheader("Lista geral de contratos")
     c1, c2, c3, c4 = st.columns(4)
-    fornecedor = c1.multiselect("Fornecedor",sorted(df_comprasnet["nomeRazaoSocialFornecedor"].dropna().unique()))
-    unidade = c2.multiselect("Unidade realizadora",sorted(df_comprasnet["nomeUnidadeRealizadoraCompra"].dropna().unique()))
-    ano = c3.multiselect("Ano",sorted(df_comprasnet["ano"].dropna().unique()))
+    fornecedor = c1.multiselect("Fornecedor",sorted(df_comprasnet["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+    unidade = c2.multiselect("Unidade realizadora",sorted(df_comprasnet["nomeUnidadeRealizadoraCompra"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+    ano = c3.multiselect("Ano",sorted(df_comprasnet["ano"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
     status = c4.multiselect("Status",["Vigente", "Vencido"])
     c5, c6, c7, c8 = st.columns(4)
-    modalidade = c5.multiselect("Modalidade de compra",sorted(df_comprasnet["nomeModalidadeCompra"].dropna().unique()))
-    tipo = c6.multiselect("Tipo de contrato",sorted(df_comprasnet["nomeTipo"].dropna().unique()))
-    categoria = c7.multiselect("Categoria",sorted(df_comprasnet["nomeCategoria"].dropna().unique()))
+    modalidade = c5.multiselect("Modalidade de compra",sorted(df_comprasnet["nomeModalidadeCompra"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+    tipo = c6.multiselect("Tipo de contrato",sorted(df_comprasnet["nomeTipo"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+    categoria = c7.multiselect("Categoria",sorted(df_comprasnet["nomeCategoria"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
     busca_texto = c8.text_input("Busca livre (objeto / informações complementares)")
     c9, c10, c11, c12 = st.columns(4)
     data_ini = c9.date_input("Vigência final a partir de",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
     data_fim = c10.date_input("Vigência final até",value=df_comprasnet["dataVigenciaFinal"].max().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].max()) else None)
-    numero_contrato = c11.multiselect("Número do contrato",sorted(df_comprasnet["numeroContrato"].dropna().unique()))
+    numero_contrato = c11.multiselect("Número do contrato",sorted(df_comprasnet["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
     valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df_comprasnet["valorGlobal"].min()),
         float(df_comprasnet["valorGlobal"].max()),(float(df_comprasnet["valorGlobal"].min()), float(df_comprasnet["valorGlobal"].max())))
     df_comprasnet_f = df_comprasnet.copy()
@@ -504,8 +509,10 @@ with tab2:
     c35.metric("Valor fora de risco", f"R$ {(vigentes['valorGlobal'].sum()-(v30['valorGlobal'].sum()+v60['valorGlobal'].sum()+v90['valorGlobal'].sum())):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c36.metric("Percentual fora de risco", f"{((len(vigentes)-(len(v30)+len(v60)+len(v90)))/len(vigentes)*100):.1f}%" if len(vigentes) > 0 else "0%")
     colvigentes_1, colvigentes_2 = st.columns(2)
-    numero_contrato = colvigentes_1.multiselect("Número do contrato",sorted(vigentes["numeroContrato"].dropna().unique()))
-    fornecedor = colvigentes_2.multiselect("Fornecedor",sorted(vigentes["nomeRazaoSocialFornecedor"].dropna().unique()))
+    numero_contrato = colvigentes_1.multiselect("Número do contrato",sorted(vigentes["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+    fornecedor = colvigentes_2.multiselect("Fornecedor",sorted(vigentes["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
     if numero_contrato:
         vigentes = vigentes[vigentes["numeroContrato"].isin(numero_contrato)]
     if fornecedor:
@@ -522,8 +529,10 @@ with tab2:
         c15.metric("Valor do maior contrato", f"R$ {v30['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v30.empty else "R$ 0,00")
         c16.metric("Média por contrato", f"R$ {v30['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v30.empty else "R$ 0,00")
         colv30_1, colv30_2 = st.columns(2)
-        numero_contrato = colv30_1.multiselect("Número do contrato",sorted(v30["numeroContrato"].dropna().unique()))
-        fornecedor = colv30_2.multiselect("Fornecedor",sorted(v30["nomeRazaoSocialFornecedor"].dropna().unique()))
+        numero_contrato = colv30_1.multiselect("Número do contrato",sorted(v30["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+        fornecedor = colv30_2.multiselect("Fornecedor",sorted(v30["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
         if numero_contrato:
             v30 = v30[v30["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
@@ -539,8 +548,10 @@ with tab2:
         c19.metric("Valor do maior contrato", f"R$ {v60['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v60.empty else "R$ 0,00")
         c20.metric("Média por contrato", f"R$ {v60['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v60.empty else "R$ 0,00")
         colv60_1, colv60_2 = st.columns(2)
-        numero_contrato = colv60_1.multiselect("Número do contrato",sorted(v60["numeroContrato"].dropna().unique()))
-        fornecedor = colv60_2.multiselect("Fornecedor",sorted(v60["nomeRazaoSocialFornecedor"].dropna().unique()))
+        numero_contrato = colv60_1.multiselect("Número do contrato",sorted(v60["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+        fornecedor = colv60_2.multiselect("Fornecedor",sorted(v60["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
         if numero_contrato:
             v60 = v60[v60["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
@@ -556,8 +567,10 @@ with tab2:
         c23.metric("Valor do maior contrato", f"R$ {v90['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v90.empty else "R$ 0,00")
         c24.metric("Média por contrato", f"R$ {v90['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not v90.empty else "R$ 0,00")
         colv90_1, colv90_2 = st.columns(2)
-        numero_contrato = colv90_1.multiselect("Número do contrato",sorted(v90["numeroContrato"].dropna().unique()))
-        fornecedor = colv90_2.multiselect("Fornecedor",sorted(v90["nomeRazaoSocialFornecedor"].dropna().unique()))
+        numero_contrato = colv90_1.multiselect("Número do contrato",sorted(v90["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+        fornecedor = colv90_2.multiselect("Fornecedor",sorted(v90["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
         if numero_contrato:
             v90 = v90[v90["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
@@ -573,8 +586,10 @@ with tab2:
         c27.metric("Valor do maior contrato", f"R$ {vencidos['valorGlobal'].max():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vencidos.empty else "R$ 0,00")
         c28.metric("Média por contrato", f"R$ {vencidos['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vencidos.empty else "R$ 0,00")
         colvencidos_1, colvencidos_2 = st.columns(2)
-        numero_contrato = colvencidos_1.multiselect("Número do contrato",sorted(vencidos["numeroContrato"].dropna().unique()))
-        fornecedor = colvencidos_2.multiselect("Fornecedor",sorted(vencidos["nomeRazaoSocialFornecedor"].dropna().unique()))
+        numero_contrato = colvencidos_1.multiselect("Número do contrato",sorted(vencidos["numeroContrato"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
+        fornecedor = colvencidos_2.multiselect("Fornecedor",sorted(vencidos["nomeRazaoSocialFornecedor"].dropna().unique()),
+                                placeholder="Selecione uma ou mais opções")
         if numero_contrato:
             vencidos = vencidos[vencidos["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
@@ -900,13 +915,16 @@ with tab4:
         col1, col2, col3 = st.columns(3)
         with col1:
             anos_disponiveis = sorted(df_resumo['Ano'].unique())
-            ano_selecionado = st.multiselect("Ano", options=anos_disponiveis, default=[], key="ano_tab1")
+            ano_selecionado = st.multiselect("Ano", options=anos_disponiveis, default=[], key="ano_tab1",
+                                placeholder="Selecione uma ou mais opções")
         with col2:
             gestores_disponiveis = sorted([g for g in df_resumo['Gestor(a)'].unique() if g != 'Não informado'])
-            gestor_selecionado = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, default=[], key="gestor_tab1")
+            gestor_selecionado = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, default=[], key="gestor_tab1",
+                                placeholder="Selecione uma ou mais opções")
         with col3:
             centros_disponiveis = sorted([c for c in df_resumo['Centro de Custo'].unique() if c != 'Não informado'])
-            centro_selecionado = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, default=[], key="centro_tab1")
+            centro_selecionado = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, default=[], key="centro_tab1",
+                                placeholder="Selecione uma ou mais opções")
 
         df_filtered = df_resumo.copy()
         if ano_selecionado:
@@ -918,7 +936,6 @@ with tab4:
         
         st.markdown("---")
         
-        # Calcular indicadores principais
         limite_gastos = df_filtered['Limite'].sum()
         valor_pre_empenhado = df_filtered['Pré-empenhado'].sum()
         valor_empenhado = df_filtered['Empenhado'].sum()
@@ -927,7 +944,6 @@ with tab4:
         valor_a_pagar = valor_empenhado - valor_pago
         valor_a_pagar = 0.0 if abs(valor_a_pagar) <= 1e-9 else valor_a_pagar
         
-        # Mostrar indicadores principais em cards
         st.subheader("Indicadores Financeiros Principais")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -1008,13 +1024,16 @@ with tab4:
         col1_f, col2_f, col3_f = st.columns(3)
         with col1_f:
             ano_gest = st.multiselect("Ano", options=anos_disponiveis, 
-                                    default=ano_selecionado if ano_selecionado else [], key="ano_gest")
+                                    default=ano_selecionado if ano_selecionado else [], key="ano_gest",
+                                    placeholder="Selecione uma ou mais opções")
         with col2_f:
             gestor_gest = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
-                                        default=gestor_selecionado if gestor_selecionado else [], key="gestor_gest")
+                                default=gestor_selecionado if gestor_selecionado else [], key="gestor_gest",
+                                placeholder="Selecione uma ou mais opções")
         with col3_f:
             centro_gest = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
-                                     default=centro_selecionado if centro_selecionado else [], key="centro_gest")
+                                default=centro_selecionado if centro_selecionado else [], key="centro_gest",
+                                placeholder="Selecione uma ou mais opções")
 
         df_gestores = df_resumo.copy()
         if ano_gest:
@@ -1075,13 +1094,16 @@ with tab4:
         col1_f, col2_f, col3_f = st.columns(3)
         with col1_f:
             ano_centro = st.multiselect("Ano", options=anos_disponiveis, 
-                                        default=ano_selecionado if ano_selecionado else [], key="ano_centro")
+                                default=ano_selecionado if ano_selecionado else [], key="ano_centro",
+                                placeholder="Selecione uma ou mais opções")
         with col2_f:
             gestor_centro = st.multiselect("Gestor", options=['Todos'] + gestores_disponiveis, 
-                                        default=gestor_selecionado if gestor_selecionado else [], key="gestor_centro")
+                                default=gestor_selecionado if gestor_selecionado else [], key="gestor_centro",
+                                placeholder="Selecione uma ou mais opções")
         with col3_f:
             centro_centro = st.multiselect("Centro de Custo", options=['Todos'] + centros_disponiveis, 
-                                        default=centro_selecionado if centro_selecionado else [], key="centro_centro")
+                                default=centro_selecionado if centro_selecionado else [], key="centro_centro",
+                                placeholder="Selecione uma ou mais opções")
         
         df_centros = df_resumo.copy()
         if ano_centro:
@@ -1153,15 +1175,18 @@ with tab5:
             with col1_f:
                 if 'Ano' in df_empenhos.columns:
                     anos_emp = sorted(df_empenhos['Ano'].dropna().unique().tolist())
-                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_emp")
+                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_emp",
+                                placeholder="Selecione uma ou mais opções")
             with col2_f:
                 if 'Favorecido' in df_empenhos.columns:
                     favorecidos = sorted([f for f in df_empenhos['Favorecido'].unique() if f != 'Não informado'][:100])
-                    favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_emp")
+                    favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_emp",
+                                placeholder="Selecione uma ou mais opções")
             with col3_f:
                 if 'Grupo' in df_empenhos.columns:
                     grupos = sorted(df_empenhos['Grupo'].dropna().unique().tolist())
-                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_emp")
+                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_emp",
+                                placeholder="Selecione uma ou mais opções")
             
             df_empenhos_filtered = df_empenhos.copy()
             if 'Ano' in df_empenhos.columns and ano_emp:
@@ -1205,15 +1230,18 @@ with tab5:
             with col1_f:
                 if 'Ano' in df_pre_empenhos.columns:
                     anos_emp = sorted(df_pre_empenhos['Ano'].dropna().unique().tolist())
-                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_pre_emp")
+                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_pre_emp",
+                                placeholder="Selecione uma ou mais opções")
             with col2_f:
                 if 'Natureza' in df_pre_empenhos.columns:
                     natureza = sorted([f for f in df_pre_empenhos['Natureza'].unique() if f != 'Não informado'][:100])
-                    natureza_emp = st.multiselect("Natureza", options=natureza, default=[], key="fav_pre_emp")
+                    natureza_emp = st.multiselect("Natureza", options=natureza, default=[], key="fav_pre_emp",
+                                placeholder="Selecione uma ou mais opções")
             with col3_f:
                 if 'Grupo' in df_pre_empenhos.columns:
                     grupos = sorted(df_pre_empenhos['Grupo'].dropna().unique().tolist())
-                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_pre_emp")
+                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_pre_emp",
+                                placeholder="Selecione uma ou mais opções")
             
             df_pre_empenhos_filtered = df_pre_empenhos.copy()
             if 'Ano' in df_pre_empenhos.columns and ano_emp:
@@ -1256,15 +1284,18 @@ with tab5:
             with col1_f:
                 if 'Ano' in df_rp.columns:
                     anos_emp = sorted(df_rp['Ano'].dropna().unique().tolist())
-                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_rp")
+                    ano_emp = st.multiselect("Ano", options=anos_emp, default=[], key="ano_rp",
+                                placeholder="Selecione uma ou mais opções")
             with col2_f:
                 if 'Favorecido' in df_rp.columns:
                     favorecidos = sorted([f for f in df_rp['Favorecido'].unique() if f != 'Não informado'][:100])
-                    favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_rp")
+                    favorecido_emp = st.selectbox("Favorecido", options=['Todos'] + favorecidos, key="fav_rp",
+                                placeholder="Selecione uma ou mais opções")
             with col3_f:
                 if 'Grupo' in df_rp.columns:
                     grupos = sorted(df_rp['Grupo'].dropna().unique().tolist())
-                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_rp")
+                    grupo_emp = st.multiselect("Grupo", options=grupos, default=[], key="grupo_rp",
+                                placeholder="Selecione uma ou mais opções")
             
             df_rp_filtered = df_rp.copy()
             if 'Ano' in df_rp.columns and ano_emp:
