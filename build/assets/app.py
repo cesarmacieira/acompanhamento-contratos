@@ -84,14 +84,14 @@ st.markdown("""
 <style>
 
 /* =========================
-   Layout seguro
+   Layout (seguro)
 ========================= */
 section.main > div {
     padding: 0rem 1rem;
 }
 
 /* =========================
-   Tabs
+   Tabs com rolagem horizontal
 ========================= */
 .stTabs [data-baseweb="tab-list"] {
     gap: 2px;
@@ -99,37 +99,64 @@ section.main > div {
     overflow-y: hidden;
     white-space: nowrap;
     flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
+/* Scrollbar tabs - Webkit */
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+    height: 4px;
+}
+
+.stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+    background-color: #0068c9;
+    border-radius: 2px;
+}
+
+/* Tabs individuais */
 .stTabs [data-baseweb="tab"] {
     padding: 8px 16px;
     background-color: #f0f2f6;
     border-radius: 5px 5px 0px 0px;
+    white-space: nowrap;
+    flex-shrink: 0;
     font-size: 14px;
 }
 
+/* Tabs - telas pequenas */
+@media (max-width: 768px) {
+    .stTabs [data-baseweb="tab"] {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Aba selecionada */
 .stTabs [aria-selected="true"] {
     background-color: #00689D;
     color: white;
 }
 
+/* Hover */
 .stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
-    color: #00689D;
+    color: #00689D !important;
 }
 
 /* =========================
-   Cards
+   Cards métricos
 ========================= */
 .metric-card {
     background-color: #f8f9fa;
     padding: 20px;
     border-radius: 10px;
     border-left: 4px solid #0068c9;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .metric-title {
     font-size: 14px;
     color: #666;
+    margin-bottom: 5px;
 }
 
 .metric-value {
@@ -149,52 +176,64 @@ h1 {
 
 h2 {
     color: #555;
+    margin-top: 20px;
 }
 
 /* =========================
-   DARK MODE (SEGURO)
+   DARK MODE (SEM QUEBRAR JS)
 ========================= */
 @media (prefers-color-scheme: dark) {
 
-  section.main > div {
-      background-color: #0e1117;
-      color: #e6e6e6;
-  }
+    section.main > div {
+        background-color: #0e1117;
+        color: #e6e6e6;
+    }
 
-  .metric-card {
-      background-color: #161b22;
-      border-left: 4px solid #58a6ff;
-  }
+    /* Scrollbar tabs dark */
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+        background-color: #58a6ff;
+    }
 
-  .metric-title {
-      color: #9aa4ad;
-  }
+    .metric-card {
+        background-color: #161b22;
+        border-left: 4px solid #58a6ff;
+        box-shadow: none;
+    }
 
-  .metric-value {
-      color: #58a6ff;
-  }
+    .metric-title {
+        color: #9aa4ad;
+    }
 
-  h1 {
-      color: #58a6ff;
-      border-bottom: 3px solid #58a6ff;
-  }
+    .metric-value {
+        color: #58a6ff;
+    }
 
-  h2 {
-      color: #c9d1d9;
-  }
+    h1 {
+        color: #58a6ff;
+        border-bottom: 3px solid #58a6ff;
+    }
 
-  .stTabs [data-baseweb="tab"] {
-      background-color: #161b22;
-      color: #c9d1d9;
-  }
+    h2 {
+        color: #c9d1d9;
+    }
 
-  .stTabs [aria-selected="true"] {
-      background-color: #1f6feb;
-      color: #ffffff;
-  }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #161b22;
+        color: #c9d1d9;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #1f6feb;
+        color: #ffffff;
+    }
+
+    .stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
+        color: #58a6ff !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # Função para formatação brasileira
