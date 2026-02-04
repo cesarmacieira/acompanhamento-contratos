@@ -80,142 +80,122 @@ def header_banner():
 
 st.image(header_banner(), use_container_width=True)
 
-st.markdown('''
-    <style>
-    .main {
-        padding: 0rem 1rem;
-    }
-    
-    /* Tabs responsivas - esconde overflow e permite scroll horizontal */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2px;
-        overflow-x: auto;
-        overflow-y: hidden;
-        white-space: nowrap;
-        flex-wrap: nowrap !important;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
-    }
-    
-    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
-        height: 4px;
-    }
-    
-    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
-        background-color: #0068c9;
-        border-radius: 2px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        padding: 8px 16px;
-        background-color: #f0f2f6;
-        border-radius: 5px 5px 0px 0px;
-        white-space: nowrap;
-        flex-shrink: 0;
-        font-size: 14px;
-    }
-    
-    /* Ajuste para telas pequenas */
-    @media (max-width: 768px) {
-        .stTabs [data-baseweb="tab"] {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-    }
-    
-    /* Aba selecionada */
-    .stTabs [aria-selected="true"] {
-        background-color: #00689D;
-        color: white;
-    }
+st.markdown("""
+<style>
 
-    /* Hover: quando passar o mouse em aba NÃO selecionada, a fonte fica #00689D */
-    .stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
-        color: #00689D !important;
-    }
+/* =========================
+   Layout seguro
+========================= */
+section.main > div {
+    padding: 0rem 1rem;
+}
 
-    .metric-card {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 4px solid #0068c9;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .metric-title {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 5px;
-    }
-    .metric-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #0068c9;
-    }
-    h1 {
-        color: #0068c9;
-        border-bottom: 3px solid #0068c9;
-        padding-bottom: 10px;
-    }
-    h2 {
-        color: #555;
-        margin-top: 20px;
-    }
-            
-    @media (prefers-color-scheme: dark) {
+/* =========================
+   Tabs
+========================= */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    flex-wrap: nowrap !important;
+}
 
-    body, .stApp {
-        background-color: #0e1117;
-        color: #e6e6e6;
-    }
+.stTabs [data-baseweb="tab"] {
+    padding: 8px 16px;
+    background-color: #f0f2f6;
+    border-radius: 5px 5px 0px 0px;
+    font-size: 14px;
+}
 
-    /* Cards */
-    .metric-card {
-        background-color: #161b22;
-        border-left: 4px solid #58a6ff;
-        box-shadow: none;
-    }
+.stTabs [aria-selected="true"] {
+    background-color: #00689D;
+    color: white;
+}
 
-    .metric-title {
-        color: #9aa4ad;
-    }
+.stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
+    color: #00689D;
+}
 
-    .metric-value {
-        color: #58a6ff;
-    }
+/* =========================
+   Cards
+========================= */
+.metric-card {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #0068c9;
+}
 
-    /* Títulos */
-    h1 {
-        color: #58a6ff;
-        border-bottom: 3px solid #58a6ff;
-    }
+.metric-title {
+    font-size: 14px;
+    color: #666;
+}
 
-    h2 {
-        color: #c9d1d9;
-    }
+.metric-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0068c9;
+}
 
-    /* Tabs */
-    .stTabs [data-baseweb="tab"] {
-        background-color: #161b22;
-        color: #c9d1d9;
-    }
+/* =========================
+   Títulos
+========================= */
+h1 {
+    color: #0068c9;
+    border-bottom: 3px solid #0068c9;
+    padding-bottom: 10px;
+}
 
-    .stTabs [aria-selected="true"] {
-        background-color: #1f6feb;
-        color: #ffffff;
-    }
+h2 {
+    color: #555;
+}
 
-    .stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
-        color: #58a6ff !important;
-    }
+/* =========================
+   DARK MODE (SEGURO)
+========================= */
+@media (prefers-color-scheme: dark) {
 
-    /* Dataframes */
-    .stDataFrame {
-        background-color: #0e1117;
-        color: #e6e6e6;
-    }
-    }
-    </style>
-''', unsafe_allow_html=True)
+  section.main > div {
+      background-color: #0e1117;
+      color: #e6e6e6;
+  }
+
+  .metric-card {
+      background-color: #161b22;
+      border-left: 4px solid #58a6ff;
+  }
+
+  .metric-title {
+      color: #9aa4ad;
+  }
+
+  .metric-value {
+      color: #58a6ff;
+  }
+
+  h1 {
+      color: #58a6ff;
+      border-bottom: 3px solid #58a6ff;
+  }
+
+  h2 {
+      color: #c9d1d9;
+  }
+
+  .stTabs [data-baseweb="tab"] {
+      background-color: #161b22;
+      color: #c9d1d9;
+  }
+
+  .stTabs [aria-selected="true"] {
+      background-color: #1f6feb;
+      color: #ffffff;
+  }
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # Função para formatação brasileira
 def formatar_real(valor):
