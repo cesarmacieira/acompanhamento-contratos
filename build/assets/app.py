@@ -160,6 +160,60 @@ st.markdown('''
         color: #555;
         margin-top: 20px;
     }
+            
+    @media (prefers-color-scheme: dark) {
+
+    body, .stApp {
+        background-color: #0e1117;
+        color: #e6e6e6;
+    }
+
+    /* Cards */
+    .metric-card {
+        background-color: #161b22;
+        border-left: 4px solid #58a6ff;
+        box-shadow: none;
+    }
+
+    .metric-title {
+        color: #9aa4ad;
+    }
+
+    .metric-value {
+        color: #58a6ff;
+    }
+
+    /* Títulos */
+    h1 {
+        color: #58a6ff;
+        border-bottom: 3px solid #58a6ff;
+    }
+
+    h2 {
+        color: #c9d1d9;
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab"] {
+        background-color: #161b22;
+        color: #c9d1d9;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #1f6feb;
+        color: #ffffff;
+    }
+
+    .stTabs [data-baseweb="tab"]:not([aria-selected="true"]):hover {
+        color: #58a6ff !important;
+    }
+
+    /* Dataframes */
+    .stDataFrame {
+        background-color: #0e1117;
+        color: #e6e6e6;
+    }
+    }
     </style>
 ''', unsafe_allow_html=True)
 
