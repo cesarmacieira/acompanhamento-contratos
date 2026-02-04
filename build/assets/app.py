@@ -289,21 +289,21 @@ def load_comprasnet_data():
     buscador = BuscadorContratos()
     contratos = buscador.buscar_multiplos_anos("12000","090006",2015,datetime.now().year)
     return pd.DataFrame(contratos)
-df = load_comprasnet_data()
-df = df.dropna(how="all")
-df = df.dropna(subset=["numeroContrato","dataVigenciaFinal"])
-if df.empty:
+df_comprasnet = load_comprasnet_data()
+df_comprasnet = df_comprasnet.dropna(how="all")
+df_comprasnet = df_comprasnet.dropna(subset=["numeroContrato","dataVigenciaFinal"])
+if df_comprasnet.empty:
     st.warning("Nenhum contrato encontrado.")
     st.stop()
 
-df["dataVigenciaInicial"] = pd.to_datetime(df["dataVigenciaInicial"], errors="coerce")
-df["dataVigenciaFinal"] = pd.to_datetime(df["dataVigenciaFinal"], errors="coerce")
-df["valorGlobal"] = pd.to_numeric(df["valorGlobal"], errors="coerce").fillna(0)
+df_comprasnet["dataVigenciaInicial"] = pd.to_datetime(df_comprasnet["dataVigenciaInicial"], errors="coerce")
+df_comprasnet["dataVigenciaFinal"] = pd.to_datetime(df_comprasnet["dataVigenciaFinal"], errors="coerce")
+df_comprasnet["valorGlobal"] = pd.to_numeric(df_comprasnet["valorGlobal"], errors="coerce").fillna(0)
 
 hoje = pd.Timestamp.today()
 
-df["status"] = df["dataVigenciaFinal"].apply(lambda x: "Vencido" if x < hoje else "Vigente")
-df["ano"] = df["dataVigenciaInicial"].dt.year
+df_comprasnet["status"] = df_comprasnet["dataVigenciaFinal"].apply(lambda x: "Vencido" if x < hoje else "Vigente")
+df_comprasnet["ano"] = df_comprasnet["dataVigenciaInicial"].dt.year
 
 # Carregar dados
 df_resumo = load_resumo_data()
@@ -337,60 +337,59 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "💰 Análise financeira",  
     "💳 Dados orçamentários", 
     "❗ Inconsistências nos sistemas",
-    #"🔍 Buscador detalhado",
-    "📈 Análise detalhada de contratos"])
+    "📈 Análise dos contratos compatibilizados"])
 
 # ==================== ABA 1: LISTA DE CONTRATOS ====================
 with tab1:
     st.subheader("Lista geral de contratos")
     c1, c2, c3, c4 = st.columns(4)
-    fornecedor = c1.multiselect("Fornecedor",sorted(df["nomeRazaoSocialFornecedor"].dropna().unique()))
-    unidade = c2.multiselect("Unidade realizadora",sorted(df["nomeUnidadeRealizadoraCompra"].dropna().unique()))
-    ano = c3.multiselect("Ano",sorted(df["ano"].dropna().unique()))
+    fornecedor = c1.multiselect("Fornecedor",sorted(df_comprasnet["nomeRazaoSocialFornecedor"].dropna().unique()))
+    unidade = c2.multiselect("Unidade realizadora",sorted(df_comprasnet["nomeUnidadeRealizadoraCompra"].dropna().unique()))
+    ano = c3.multiselect("Ano",sorted(df_comprasnet["ano"].dropna().unique()))
     status = c4.multiselect("Status",["Vigente", "Vencido"])
     c5, c6, c7, c8 = st.columns(4)
-    modalidade = c5.multiselect("Modalidade de compra",sorted(df["nomeModalidadeCompra"].dropna().unique()))
-    tipo = c6.multiselect("Tipo de contrato",sorted(df["nomeTipo"].dropna().unique()))
-    categoria = c7.multiselect("Categoria",sorted(df["nomeCategoria"].dropna().unique()))
+    modalidade = c5.multiselect("Modalidade de compra",sorted(df_comprasnet["nomeModalidadeCompra"].dropna().unique()))
+    tipo = c6.multiselect("Tipo de contrato",sorted(df_comprasnet["nomeTipo"].dropna().unique()))
+    categoria = c7.multiselect("Categoria",sorted(df_comprasnet["nomeCategoria"].dropna().unique()))
     busca_texto = c8.text_input("Busca livre (objeto / informações complementares)")
     c9, c10, c11, c12 = st.columns(4)
-    data_ini = c9.date_input("Vigência final a partir de",value=df["dataVigenciaFinal"].min().date() if pd.notnull(df["dataVigenciaFinal"].min()) else None)
-    data_fim = c10.date_input("Vigência final até",value=df["dataVigenciaFinal"].max().date() if pd.notnull(df["dataVigenciaFinal"].max()) else None)
-    numero_contrato = c11.multiselect("Número do contrato",sorted(df["numeroContrato"].dropna().unique()))
-    valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df["valorGlobal"].min()),
-        float(df["valorGlobal"].max()),(float(df["valorGlobal"].min()), float(df["valorGlobal"].max())))
-    df_f = df.copy()
+    data_ini = c9.date_input("Vigência final a partir de",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
+    data_fim = c10.date_input("Vigência final até",value=df_comprasnet["dataVigenciaFinal"].max().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].max()) else None)
+    numero_contrato = c11.multiselect("Número do contrato",sorted(df_comprasnet["numeroContrato"].dropna().unique()))
+    valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df_comprasnet["valorGlobal"].min()),
+        float(df_comprasnet["valorGlobal"].max()),(float(df_comprasnet["valorGlobal"].min()), float(df_comprasnet["valorGlobal"].max())))
+    df_comprasnet_f = df_comprasnet.copy()
     if fornecedor:
-        df_f = df_f[df_f["nomeRazaoSocialFornecedor"].isin(fornecedor)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["nomeRazaoSocialFornecedor"].isin(fornecedor)]
     if unidade:
-        df_f = df_f[df_f["nomeUnidadeRealizadoraCompra"].isin(unidade)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["nomeUnidadeRealizadoraCompra"].isin(unidade)]
     if ano:
-        df_f = df_f[df_f["ano"].isin(ano)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["ano"].isin(ano)]
     if status:
-        df_f = df_f[df_f["status"].isin(status)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["status"].isin(status)]
     if modalidade:
-        df_f = df_f[df_f["nomeModalidadeCompra"].isin(modalidade)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["nomeModalidadeCompra"].isin(modalidade)]
     if tipo:
-        df_f = df_f[df_f["nomeTipo"].isin(tipo)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["nomeTipo"].isin(tipo)]
     if categoria:
-        df_f = df_f[df_f["nomeCategoria"].isin(categoria)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["nomeCategoria"].isin(categoria)]
     if busca_texto:
         texto = norm(busca_texto)
-        df_f = df_f[df_f["objeto"].apply(norm).str.contains(texto, na=False) | df_f["informacoesComplementares"].apply(norm).str.contains(texto, na=False)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["objeto"].apply(norm).str.contains(texto, na=False) | df_comprasnet_f["informacoesComplementares"].apply(norm).str.contains(texto, na=False)]
     if data_ini:
-        df_f = df_f[df_f["dataVigenciaFinal"] >= pd.to_datetime(data_ini)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["dataVigenciaFinal"] >= pd.to_datetime(data_ini)]
     if data_fim:
-        df_f = df_f[df_f["dataVigenciaFinal"] <= pd.to_datetime(data_fim)]
-    df_f = df_f[(df_f["valorParcela"] >= valor_parcela_min) & (df_f["valorParcela"] <= valor_parcela_max)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["dataVigenciaFinal"] <= pd.to_datetime(data_fim)]
+    df_comprasnet_f = df_comprasnet_f[(df_comprasnet_f["valorParcela"] >= valor_parcela_min) & (df_comprasnet_f["valorParcela"] <= valor_parcela_max)]
     if numero_contrato:
-        df_f = df_f[df_f["numeroContrato"].isin(numero_contrato)]
+        df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["numeroContrato"].isin(numero_contrato)]
 
-    df_f.columns = colunas_renomeadas
-    st.dataframe(df_f.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
-    st.caption(f"Contratos exibidos: {len(df_f)}")
+    df_comprasnet_f.columns = colunas_renomeadas
+    st.dataframe(df_comprasnet_f.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
+    st.caption(f"Quantidade de contratos exibidos: {len(df_comprasnet_f)}")
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df_f.sort_values("Data de Vigência Final").to_excel(writer, index=False, sheet_name="Contratos")
+        df_comprasnet_f.sort_values("Data de Vigência Final").to_excel(writer, index=False, sheet_name="Contratos")
     buffer.seek(0)
 
     st.download_button(label="⬇️ Baixar contratos", data=buffer, file_name="contratos.xlsx",
@@ -399,23 +398,23 @@ with tab1:
 # ==================== ABA 2: ALERTAS ====================
 with tab2:
     st.subheader("Alertas de prazo e risco")
-    v30 = df[(df["dataVigenciaFinal"] >= hoje) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=30))]
-    v60 = df[(df["dataVigenciaFinal"] > hoje + timedelta(days=30)) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=60))]
-    v90 = df[(df["dataVigenciaFinal"] > hoje + timedelta(days=60)) & (df["dataVigenciaFinal"] <= hoje + timedelta(days=90))]
-    vencidos = df[df["dataVigenciaFinal"] < hoje]
-    vigentes = df[df["dataVigenciaFinal"] >= hoje]
+    v30 = df_comprasnet[(df_comprasnet["dataVigenciaFinal"] >= hoje) & (df_comprasnet["dataVigenciaFinal"] <= hoje + timedelta(days=30))]
+    v60 = df_comprasnet[(df_comprasnet["dataVigenciaFinal"] > hoje + timedelta(days=30)) & (df_comprasnet["dataVigenciaFinal"] <= hoje + timedelta(days=60))]
+    v90 = df_comprasnet[(df_comprasnet["dataVigenciaFinal"] > hoje + timedelta(days=60)) & (df_comprasnet["dataVigenciaFinal"] <= hoje + timedelta(days=90))]
+    vencidos = df_comprasnet[df_comprasnet["dataVigenciaFinal"] < hoje]
+    vigentes = df_comprasnet[df_comprasnet["dataVigenciaFinal"] >= hoje]
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Quantidade total de contratos", len(df))
+    c1.metric("Quantidade total de contratos", len(df_comprasnet))
     c2.metric("Contratos vigentes", len(vigentes))
     c3.metric("Contratos vencidos", len(vencidos))
-    c4.metric("Percentual de contratos vencidos", f"{(len(vencidos)/len(df)*100):.1f}%" if len(df) > 0 else "0%")
+    c4.metric("Percentual de contratos vencidos", f"{(len(vencidos)/len(df_comprasnet)*100):.1f}%" if len(df_comprasnet) > 0 else "0%")
     c5, c6, c7, c8 = st.columns(4)
     c5.metric("Vencendo em 30 dias", len(v30))
     c6.metric("Vencendo em 60 dias", len(v60))
     c7.metric("Vencendo em 90 dias", len(v90))
     c8.metric("Total contratos críticos", len(v30)+len(v60)+len(v90))
     c9, c10, c11, c12 = st.columns(4)
-    c9.metric("Valor total contratado", f"R$ {df['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    c9.metric("Valor total contratado", f"R$ {df_comprasnet['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c10.metric("Valor vigente", f"R$ {vigentes['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c11.metric("Valor vencido", f"R$ {vencidos['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c12.metric("Valor total em risco", f"R$ {(v30['valorGlobal'].sum()+v60['valorGlobal'].sum()+v90['valorGlobal'].sum()):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -423,7 +422,7 @@ with tab2:
     st.markdown("### 📋 Contratos vigentes")
     c29, c30, c31, c32 = st.columns(4)
     c29.metric("Qtd contratos", len(vigentes))
-    c30.metric("Percentual do total", f"{(len(vigentes)/len(df)*100):.1f}%" if len(df) > 0 else "0%")
+    c30.metric("Percentual do total", f"{(len(vigentes)/len(df_comprasnet)*100):.1f}%" if len(df_comprasnet) > 0 else "0%")
     c31.metric("Valor total vigente", f"R$ {vigentes['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     c32.metric("Valor médio", f"R$ {vigentes['valorGlobal'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not vigentes.empty else "R$ 0,00")
     c33, c34, c35, c36 = st.columns(4)
@@ -533,7 +532,6 @@ with tab2:
                 marker_color='#D32F2F', text=top_cat_qtd['Quantidade'], textposition='auto'))
             fig_cat_qtd.update_layout(xaxis_title="Quantidade de Contratos", yaxis_title="", height=400, yaxis={'categoryorder':'total ascending'})
             st.plotly_chart(fig_cat_qtd, use_container_width=True)
-        
         with col2:
             st.markdown("### Valor total por categoria")
             top_cat_valor = cat_risco.nlargest(100, 'Valor total')
@@ -545,21 +543,17 @@ with tab2:
         
         # Tabela com detalhes
         hoje = pd.Timestamp.today().normalize()
-
         contratos_display = contratos_risco.copy()
         contratos_display['Dias até vencimento'] = (pd.to_datetime(contratos_display['dataVigenciaFinal']) - hoje).dt.days
         contratos_display['Risco de vencimento'] = contratos_display['Dias até vencimento'].apply(lambda x: '🔴 Crítico' if x <= 30 else '🟡 Atenção' if x <= 90 else '🟢 Controlado')
-
         contratos_display['valorGlobal'] = contratos_display['valorGlobal'].apply(formatar_real)
         contratos_display['dataVigenciaFinal'] = pd.to_datetime(contratos_display['dataVigenciaFinal']).dt.strftime('%d/%m/%Y')
-
         contratos_display = contratos_display.rename(columns={'numeroContrato': 'Contrato',
             'nomeCategoria': 'Categoria', 'valorGlobal': 'Valor do contrato', 'dataVigenciaFinal': 'Data final'})
         contratos_display = contratos_display[['Contrato','Categoria','Valor do contrato','Data final','Dias até vencimento','Risco de vencimento']]
         with st.expander("Ver detalhes", expanded=False):
             st.dataframe(contratos_display.sort_values('Dias até vencimento').reset_index(drop=True),
                 use_container_width=True)
-
     else:
         st.success("✅ Não há contratos em risco de vencimento nos próximos 90 dias!")
     
@@ -568,22 +562,20 @@ with tab3:
     st.subheader("Análises dos contratos")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Quantidade total de contratos", len(df))
-    c2.metric("Contratos vigentes", len(df[df["status"] == "Vigente"]))
-    c3.metric("Contratos vencidos", len(df[df["status"] == "Vencido"]))
-    c4.metric("Percentual de contratos vigentes", f'{(len(df[df["status"] == "Vigente"]) / len(df) * 100):.1f}%' if len(df) > 0 else "0%")
+    c1.metric("Quantidade total de contratos", len(df_comprasnet))
+    c2.metric("Contratos vigentes", len(df_comprasnet[df_comprasnet["status"] == "Vigente"]))
+    c3.metric("Contratos vencidos", len(df_comprasnet[df_comprasnet["status"] == "Vencido"]))
+    c4.metric("Percentual de contratos vigentes", f'{(len(df_comprasnet[df_comprasnet["status"] == "Vigente"]) / len(df_comprasnet) * 100):.1f}%' if len(df_comprasnet) > 0 else "0%")
     
     c5, c6, c7, c8 = st.columns(4)
-    c5.metric("Valor total", f"R$ {df['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c6.metric("Valor vigente", f"R$ {df[df['status']=='Vigente']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c7.metric("Valor vencido", f"R$ {df[df['status']=='Vencido']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    c8.metric("Fornecedores únicos", df["nomeRazaoSocialFornecedor"].nunique())
+    c5.metric("Valor total", f"R$ {df_comprasnet['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    c6.metric("Valor vigente", f"R$ {df_comprasnet[df_comprasnet['status']=='Vigente']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    c7.metric("Valor vencido", f"R$ {df_comprasnet[df_comprasnet['status']=='Vencido']['valorGlobal'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    c8.metric("Fornecedores únicos", df_comprasnet["nomeRazaoSocialFornecedor"].nunique())
     st.divider()
 
-    # ============ EVOLUÇÃO TEMPORAL ============
     st.markdown("## Evolução Temporal")
-    evolucao = df.groupby("ano").agg(contratos=("numeroContrato", "count"),valor=("valorGlobal", "sum")).reset_index()
-    
+    evolucao = df_comprasnet.groupby("ano").agg(contratos=("numeroContrato", "count"),valor=("valorGlobal", "sum")).reset_index()
     col1, col2 = st.columns(2)
     with col1: 
         st.markdown("### Contratos por ano")
@@ -592,7 +584,6 @@ with tab3:
         fig.update_xaxes(tickangle=0,tickmode="linear",dtick=1)
         st.plotly_chart(fig,use_container_width=True)
         st.caption(f"Média anual: {evolucao['contratos'].mean():.0f} contratos")
-
     with col2:
         st.markdown("### Valor contratado por ano")
         fig_valor = px.bar(evolucao, x="ano", y="valor", labels={"ano": "Ano", "valor": "Valor contratado (R$)"},
@@ -601,17 +592,12 @@ with tab3:
         fig_valor.update_yaxes(tickprefix="R$ ", separatethousands=True)
         st.plotly_chart(fig_valor, use_container_width=True)
         st.caption(f"Média anual: R$ {evolucao['valor'].mean():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    
-    # Comparação ano a ano
     evolucao["var_contratos_%"] = evolucao["contratos"].pct_change() * 100
     evolucao["var_valor_%"] = evolucao["valor"].pct_change() * 100
     evolucao["ticket_medio"] = evolucao["valor"] / evolucao["contratos"]
-    
-    # Renomear colunas
     evolucao_display = evolucao.copy()
     evolucao_display.columns = ['Ano', 'Contratos', 'Valor', 'Variação da quantidade de contratos em relação ao ano anterior (%)', 
                                 'Variação dos valores dos contratos em relação ao ano anterior %', 'Ticket médio']
-    
     with st.expander("Ver detalhes", expanded=False):
         st.dataframe(evolucao_display.style.format({"Valor": "R$ {:,.2f}",
         "Variação da quantidade de contratos em relação ao ano anterior (%)": "{:.1f}%",
@@ -620,27 +606,21 @@ with tab3:
 
     st.divider()
 
-    # ============ ANÁLISE POR STATUS ============
     st.markdown("## Análise por Status dos Contratos")
-    
-    status_analise = df.groupby("status").agg(quantidade=("numeroContrato", "count"),
+    status_analise = df_comprasnet.groupby("status").agg(quantidade=("numeroContrato", "count"),
             valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"),
             valor_minimo=("valorGlobal", "min"), valor_maximo=("valorGlobal", "max")).reset_index()
-    
     col1, col2, col3 = st.columns(3)
-    
     with col1:
         st.markdown("### Quantidade de contratos por status")
         st.plotly_chart(px.bar(status_analise,x="status",y="quantidade", color_discrete_sequence=["#00689D"],
                                labels={"status":"Status","quantidade":"Quantidade"}),use_container_width=True)
-
     with col2:
         st.markdown("### Valor total dos contratos por status")
         fig_total = px.bar(status_analise,x="status",y="valor_total",labels={"status":"Status","valor_total":"Valor total (R$)"},
         color_discrete_sequence=["#00689D"])
         fig_total.update_yaxes(tickprefix="R$ ",separatethousands=True)
         st.plotly_chart(fig_total,use_container_width=True)
-
     with col3:
         st.markdown("### Ticket médio dos contratos por status")
         fig_medio = px.bar(status_analise,x="status",y="valor_medio",labels={"status":"Status","valor_medio":"Valor médio (R$)"},
@@ -655,9 +635,8 @@ with tab3:
             "Valor mínimo": "R$ {:,.2f}", "Valor máximo": "R$ {:,.2f}"}), use_container_width=True)
     st.divider()
 
-    # ============ ANÁLISE POR CATEGORIA ============
     st.markdown("## Análise por Categoria")
-    cat_analise = df.groupby("nomeCategoria").agg(quantidade=("numeroContrato", "count"),
+    cat_analise = df_comprasnet.groupby("nomeCategoria").agg(quantidade=("numeroContrato", "count"),
         valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"),
         vigentes=("status", lambda x: (x == "Vigente").sum()),
         vencidos=("status", lambda x: (x == "Vencido").sum())).reset_index().sort_values("valor_total", ascending=False)
@@ -686,13 +665,10 @@ with tab3:
             "% Vigentes": "{:.1f}%"}), use_container_width=True)
     st.divider()
 
-    # ============ ANÁLISE POR FORNECEDOR ============
     st.markdown("## Análise por Fornecedor")
-    
-    forn_analise = df.groupby("nomeRazaoSocialFornecedor").agg(quantidade=("numeroContrato", "count"),
+    forn_analise = df_comprasnet.groupby("nomeRazaoSocialFornecedor").agg(quantidade=("numeroContrato", "count"),
         valor_total=("valorGlobal", "sum"), valor_medio=("valorGlobal", "mean"), vigentes=("status", lambda x: (x == "Vigente").sum()),
         categorias=("nomeCategoria", "nunique")).reset_index().sort_values("valor_total", ascending=False)
-    
     forn_analise["participacao_%"] = (forn_analise["valor_total"] / forn_analise["valor_total"].sum() * 100).round(2)
     forn_analise.columns = ['Fornecedor', 'Quantidade', 'Valor Total', 'Valor Médio', 'Vigentes', 'Categorias', 'Frequência relativa %']
     
@@ -725,8 +701,7 @@ with tab3:
         top_forn_qtd = top_forn_qtd.head(15).sort_values("Quantidade")
         st.plotly_chart(px.bar(top_forn_qtd.head(15),x="Quantidade",y="nome_curto",orientation="h", color_discrete_sequence=["#00689D"],
                                labels={"quantidade":"Quantidade","nome_curto":"Fornecedor"}),
-                               use_container_width=True)
-        
+                               use_container_width=True)        
     with col2:
         st.markdown("### Valor dos contratos por fornecedor")
         top_forn = forn_analise.copy()
@@ -737,8 +712,7 @@ with tab3:
                                 color_discrete_sequence=["#00689D"])
         fig_forn_valor.update_xaxes(tickprefix="R$ ",separatethousands=True)
         st.plotly_chart(fig_forn_valor,use_container_width=True)
-    
-    # Detalhamento completo por fornecedor
+
     with st.expander("Ver detalhes", expanded=False):
         st.dataframe(forn_analise.reset_index(drop=True).style.format({"Valor Total": "R$ {:,.2f}",
             "Valor Médio": "R$ {:,.2f}", "Frequência relativa %": "{:.2f}%"}), use_container_width=True)
@@ -746,7 +720,7 @@ with tab3:
 
     # ============ ANÁLISE POR MODALIDADE ============
     st.markdown("## Análise por Modalidade de Compra")
-    mod_analise = df.groupby("nomeModalidadeCompra").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"), 
+    mod_analise = df_comprasnet.groupby("nomeModalidadeCompra").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"), 
         valor_medio=("valorGlobal", "mean")).reset_index().sort_values("valor_total", ascending=False)
     mod_analise["participacao_%"] = (mod_analise["valor_total"] / mod_analise["valor_total"].sum() * 100).round(2)
     mod_analise.columns = ['Modalidade', 'Quantidade', 'Valor total', 'Valor médio', 'Frequência relativa %']
@@ -768,7 +742,7 @@ with tab3:
 
     # ============ ANÁLISE POR TIPO ============
     st.markdown("## Análise por Tipo de Contrato")
-    tipo_analise = df.groupby("nomeTipo").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"),
+    tipo_analise = df_comprasnet.groupby("nomeTipo").agg(quantidade=("numeroContrato", "count"), valor_total=("valorGlobal", "sum"),
         valor_medio=("valorGlobal", "mean")).reset_index().sort_values("valor_total", ascending=False)
     tipo_analise.columns = ['Tipo', 'Quantidade', 'Valor total', 'Valor médio']
     col1, col2 = st.columns(2)
@@ -790,7 +764,7 @@ with tab3:
     # ============ ANÁLISE DE UNIDADES ============
     st.markdown("## Análise por Unidade Realizadora")
     
-    unid_analise = df.groupby("nomeUnidadeRealizadoraCompra").agg(quantidade=("numeroContrato", "count"),
+    unid_analise = df_comprasnet.groupby("nomeUnidadeRealizadoraCompra").agg(quantidade=("numeroContrato", "count"),
         valor_total=("valorGlobal", "sum"), fornecedores=("nomeRazaoSocialFornecedor", "nunique"),
         categorias=("nomeCategoria", "nunique")).reset_index().sort_values("valor_total", ascending=False)
     
@@ -816,12 +790,9 @@ with tab3:
         st.dataframe(unid_analise.style.format({"Valor total": "R$ {:,.2f}"}), use_container_width=True)
     st.divider()
 
-    # ============ ANÁLISE CRUZADA ============
-    st.markdown("## Análises comparativas por ano")
-    
+    st.markdown("## Análises comparativas por ano")    
     st.markdown("### Categoria × Ano")
-    cat_ano = pd.crosstab(df["nomeCategoria"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
-
+    cat_ano = pd.crosstab(df_comprasnet["nomeCategoria"], df_comprasnet["ano"], values=df_comprasnet["valorGlobal"], aggfunc="sum").fillna(0)
     fig_cat_ano = go.Figure()
     for categoria in cat_ano.index: 
         fig_cat_ano.add_bar(x=cat_ano.columns, y=cat_ano.loc[categoria], name=categoria)
@@ -835,7 +806,7 @@ with tab3:
         st.dataframe(cat_ano_display, use_container_width=True)
 
     st.markdown("### Modalidade × Ano")
-    mod_ano = pd.crosstab(df["nomeModalidadeCompra"], df["ano"], values=df["valorGlobal"], aggfunc="sum").fillna(0)
+    mod_ano = pd.crosstab(df_comprasnet["nomeModalidadeCompra"], df_comprasnet["ano"], values=df_comprasnet["valorGlobal"], aggfunc="sum").fillna(0)
 
     fig_mod_ano = go.Figure()
     for modalidade in mod_ano.index: 
@@ -1007,7 +978,11 @@ with tab4:
             fig = go.Figure()
             fig.add_trace(go.Bar(name="Empenhado", y=gestores_top["Gestor(a)"], x=gestores_top["Empenhado"], orientation="h", marker_color="#0068c9", text=gestores_top["Empenhado"].apply(formatar_real), textposition="auto"))
             fig.add_trace(go.Bar(name="Pago", y=gestores_top["Gestor(a)"], x=gestores_top["Valor Empenhos Pagos"], orientation="h", marker_color="#28a745", text=gestores_top["Valor Empenhos Pagos"].apply(formatar_real), textposition="auto"))
-            fig.update_layout(barmode="group", height=700 + len(gestores_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
+            if len(gestores_top) < 14:
+                fig.update_layout(barmode="group", height=300 + len(gestores_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
+            else:
+                fig.update_layout(barmode="group", height=500 + len(gestores_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
+            
             st.plotly_chart(fig, use_container_width=True)
                                         
             st.markdown("---")
@@ -1073,7 +1048,10 @@ with tab4:
             fig = go.Figure()
             fig.add_trace(go.Bar(name="Empenhado", y=centros_top["Centro de Custo"], x=centros_top["Empenhado"], orientation="h", marker_color="#0068c9", text=centros_top["Empenhado"].apply(formatar_real), textposition="auto"))
             fig.add_trace(go.Bar(name="Pago", y=centros_top["Centro de Custo"], x=centros_top["Valor Empenhos Pagos"], orientation="h", marker_color="#28a745", text=centros_top["Valor Empenhos Pagos"].apply(formatar_real), textposition="auto"))
-            fig.update_layout(barmode="group", height=700 + len(centros_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
+            if len(centros_top) < 14:
+                fig.update_layout(barmode="group", height=300 + len(centros_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
+            else:
+                fig.update_layout(barmode="group", height=500 + len(centros_top) * 35, xaxis_title="Valor (R$)", yaxis_title=None, legend_title=None, hovermode="y unified", separators=",.")
             st.plotly_chart(fig, use_container_width=True)
                                         
             st.markdown("---")
@@ -1082,11 +1060,9 @@ with tab4:
             centros_ano_agg = df_centros.groupby(['Ano', 'Centro de Custo']).agg({'Limite': 'sum', 'Empenhado': 'sum',
                 'Valor Empenhos Pagos': 'sum', 'Pré-empenhado': 'sum', 'A Pagar': 'sum'}).reset_index()
             centros_ano_agg['Disponível'] = (centros_ano_agg['Limite'] - centros_ano_agg['Pré-empenhado'] - centros_ano_agg['Empenhado'])
-            #centros_ano_agg['% Execução'] = centros_ano_agg.apply(lambda row: (row['Empenhado'] / row['Limite'] * 100) if row['Limite'] > 0 else 0, axis=1)
             centros_display = centros_ano_agg.copy()
             for col in ['Limite', 'Empenhado', 'Valor Empenhos Pagos', 'Pré-empenhado', 'Disponível', 'A Pagar']:
                 centros_display[col] = centros_display[col].apply(formatar_real)
-            #centros_display['% Execução'] = centros_display['% Execução'].apply(formatar_percentual)
             st.dataframe(centros_display, use_container_width=True, height=400)            
 
 # ==================== ABA 5: DADOS ORÇAMENTÁRIOS ====================
@@ -1288,10 +1264,10 @@ with tab5:
             st.download_button(label="⬇️ Baixar dados", data=buffer, file_name=f"Dados restos a pagar {timestamp}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# ==================== ABA 8: RECONCILIAÇÃO DE DADOS ====================
+# ==================== ABA 6: RECONCILIAÇÃO DE DADOS ====================
 with tab6:
     st.header("Inconsistências nos dados dos sistemas")
-    st.info("""Esta aba compara os dados do **ComprasNet** com os dados do Portal TRF5.""")
+    st.info("""Esta aba compara os dados do **ComprasNet** com os dados do **Portal TRF5** (Empenhos, Pré-Empenhos e Restos a Pagar).""")
     
     # Função para normalizar número de contrato (remover zeros à esquerda)
     def normalizar_contrato(num_contrato):
@@ -1311,436 +1287,149 @@ with tab6:
             return num_sem_zeros
         return num_str.lstrip('0') or '0'
     
-    # Preparar dados do ComprasNet
-    df_comprasnet = df.copy()
-    if 'numeroContrato' in df_comprasnet.columns:
-        df_comprasnet['numeroContrato_original'] = df_comprasnet['numeroContrato']
-        df_comprasnet['numeroContrato'] = df_comprasnet['numeroContrato'].apply(normalizar_contrato)
-    
-    # Preparar dados do Portal TRF5 (empenhos)
-    df_portal_rec = df_empenhos.copy()
-    
-    # Tentar identificar a coluna de número de contrato no portal
-    # Possíveis nomes: 'Contrato', 'Número Contrato', 'Nº Contrato', 'numeroContrato', 'Empenho'
-    col_contrato_portal = None
-    for col in ['Contrato', 'Número Contrato', 'Nº Contrato', 'numeroContrato', 'Numero Contrato', 'Empenho']:
-        if col in df_portal_rec.columns:
-            col_contrato_portal = col
-            break
-    
-    if col_contrato_portal is None:
-        st.warning("⚠️ Não foi possível identificar a coluna de número de contrato nos dados de empenhos.")
-        st.info("Colunas disponíveis: " + ", ".join(df_portal_rec.columns.tolist()[:10]) + "...")
+    df_comprasnet_copy = df_comprasnet.copy()
+    df_comprasnet_copy['numeroContrato_original'] = df_comprasnet_copy['numeroContrato']
+    df_comprasnet_copy['numeroContrato'] = df_comprasnet_copy['numeroContrato'].apply(normalizar_contrato)
+    df_portal_consolidado = pd.DataFrame()
+    dfs_portal = [('Empenhos', df_empenhos), ('Pré-Empenhos', df_pre_empenhos), ('Restos a Pagar', df_rp)]
+    for nome_df, df_temp in dfs_portal:
+        if df_temp is not None and not df_temp.empty and 'Contrato' in df_temp.columns:
+            df_temp_copy = df_temp.copy()
+            df_temp_copy['Origem portal'] = nome_df
+            df_temp_copy['Contrato_original'] = df_temp_copy['Contrato']
+            df_temp_copy['Contrato'] = df_temp_copy['Contrato'].apply(normalizar_contrato)
+            df_portal_consolidado = pd.concat([df_portal_consolidado, df_temp_copy], ignore_index=True)
+    if df_portal_consolidado.empty:
+        st.warning("⚠️ Não foram encontrados dados do Portal TRF5 com a coluna 'Contrato'.")
     else:
-        df_portal_rec[f'{col_contrato_portal}_original'] = df_portal_rec[col_contrato_portal]
-        df_portal_rec[col_contrato_portal] = df_portal_rec[col_contrato_portal].apply(normalizar_contrato)
-        
-        # Obter conjuntos únicos de contratos
-        contratos_comprasnet = set(df_comprasnet['numeroContrato'].unique())
-        contratos_portal = set(df_portal_rec[col_contrato_portal].unique())
-        
-        # Calcular intersecções
+        contratos_comprasnet = set(df_comprasnet_copy['numeroContrato'].unique())
+        contratos_portal = set(df_portal_consolidado['Contrato'].dropna().unique())
+        contratos_comprasnet.discard('')
+        contratos_portal.discard('')
         contratos_ambos = contratos_comprasnet & contratos_portal
         contratos_so_comprasnet = contratos_comprasnet - contratos_portal
         contratos_so_portal = contratos_portal - contratos_comprasnet
         
+        # Métricas principais
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Quantidade de contratos no ComprasNet", f"{len(contratos_comprasnet):,}")
+            st.metric("Contratos no ComprasNet", f"{len(contratos_comprasnet):,}")
         with col2:
-            st.metric("Quantidade de contratos no Portal TRF5", f"{len(contratos_portal):,}")
+            st.metric("Contratos no Portal TRF5", f"{len(contratos_portal):,}")
         with col3:
             st.metric("Em Ambos", f"{len(contratos_ambos):,}")
         with col4:
             perc_match = (len(contratos_ambos) / len(contratos_comprasnet) * 100) if len(contratos_comprasnet) > 0 else 0
             st.metric("% Correspondência", f"{perc_match:.1f}%")
-        st.markdown("---")
         
+        st.markdown("---")
+        st.subheader("Distribuição de Contratos")        
         col1, col2 = st.columns(2)
         with col1:
             fig_dist = go.Figure(data=[go.Pie(labels=['Em Ambos', 'Só ComprasNet', 'Só Portal'],
                 values=[len(contratos_ambos), len(contratos_so_comprasnet), len(contratos_so_portal)],
                 marker=dict(colors=['#28a745', '#ffc107', '#dc3545']), hole=0.4)])
-            fig_dist.update_layout(title="Distribuição de Contratos", height=400)
+            fig_dist.update_layout(height=400)
             st.plotly_chart(fig_dist, use_container_width=True)
         with col2:
-            dados_comp = pd.DataFrame({'Categoria': ['ComprasNet Total', 'Portal TRF5 Total', 'Correspondência'],
-                'Quantidade': [len(contratos_comprasnet), len(contratos_portal), len(contratos_ambos)]})
-            fig_comp = go.Figure()
-            fig_comp.add_trace(go.Bar(x=dados_comp['Categoria'], y=dados_comp['Quantidade'],
-                marker_color=['#0068c9', '#17a2b8', '#28a745'], text=dados_comp['Quantidade'], textposition='auto'))
-            fig_comp.update_layout(title="Comparação de Quantidades", yaxis_title="Quantidade de Contratos", height=400)
-            st.plotly_chart(fig_comp, use_container_width=True)        
+            dados_comp = pd.DataFrame({'Categoria': ['ComprasNet Total', 'Portal TRF5 Total', 'Correspondência'], 
+                                       'Quantidade': [len(contratos_comprasnet), len(contratos_portal), len(contratos_ambos)]}) 
+            fig_comp = go.Figure() 
+            fig_comp.add_trace(go.Bar(x=dados_comp['Categoria'], y=dados_comp['Quantidade'], 
+                                      marker_color=['#28a745', '#ffc107', '#dc3545'], 
+                                      text=dados_comp['Quantidade'], textposition='auto')) 
+            fig_comp.update_layout(yaxis_title="Quantidade de Contratos", height=400) 
+            st.plotly_chart(fig_comp, use_container_width=True)
         st.markdown("---")
 
-        rec_tab1, rec_tab2, rec_tab3 = st.tabs([f"✅ Em Ambos ({len(contratos_ambos)})",
-                                                f"⚠️ Só ComprasNet ({len(contratos_so_comprasnet)})",
-                                                f"⚠️ Só Portal ({len(contratos_so_portal)})"])
-        
+        rec_tab1, rec_tab2, rec_tab3 = st.tabs(["Em Ambos", "Somente ComprasNet", "Somente Portal"])
         with rec_tab1:
             st.subheader("Contratos presentes em ambas as bases")
             if len(contratos_ambos) > 0:
-                df_ambos = df_comprasnet[df_comprasnet['numeroContrato'].isin(contratos_ambos)][
+                df_ambos = df_comprasnet_copy[df_comprasnet_copy['numeroContrato'].isin(contratos_ambos)][
                     ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
                      'dataVigenciaInicial', 'dataVigenciaFinal', 'status']].sort_values('valorGlobal', ascending=False)
-                df_portal_info = df_portal_rec[df_portal_rec[col_contrato_portal].isin(contratos_ambos)]
-                st.metric("Contratos Reconciliados", f"{len(df_ambos):,}")
-                st.metric("Valor Total (ComprasNet)", formatar_real(df_ambos['valorGlobal'].sum()))
-                
-                st.dataframe(df_ambos, use_container_width=True)
+                df_portal_info = df_portal_consolidado[df_portal_consolidado['Contrato'].isin(contratos_ambos)]
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Quantidade de contratos compatibilizados", f"{len(df_ambos):,}")
+                df_ambos = df_ambos.reset_index(drop=True)
+                #df_ambos.columns = colunas_renomeadas
+                st.dataframe(df_ambos, use_container_width=True)     
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                    df_ambos.to_excel(writer, index=False, sheet_name="Restos a pagar")
+                    df_ambos.to_excel(writer, index=False, sheet_name="Contratos em Ambos")
                 buffer.seek(0)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                st.download_button(label="⬇️ Baixar dados", data=buffer, file_name=f"Dados em ambos portais {timestamp}.xlsx",
+                st.download_button(label="⬇️ Baixar dados", data=buffer, file_name=f"Contratos ambos portais {timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
                 st.info("Nenhum contrato encontrado em ambas as bases.")
         
         with rec_tab2:
             st.subheader("Contratos presentes apenas no ComprasNet")
-            st.markdown("""**Atenção:** Estes contratos estão cadastrados no ComprasNet mas não foram encontrados no Portal TRF5.""")
+            st.markdown("""**Atenção:** Estes contratos estão cadastrados no ComprasNet mas não foram encontrados em nenhuma base do Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar).""")
             
             if len(contratos_so_comprasnet) > 0:
-                df_so_comprasnet = df_comprasnet[df_comprasnet['numeroContrato'].isin(contratos_so_comprasnet)][
+                df_so_comprasnet = df_comprasnet_copy[df_comprasnet_copy['numeroContrato'].isin(contratos_so_comprasnet)][
                     ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
                      'dataVigenciaInicial', 'dataVigenciaFinal', 'status']].sort_values('valorGlobal', ascending=False)
                 
                 st.metric("Total de Contratos", f"{len(df_so_comprasnet):,}")
-                st.metric("Valor Total", formatar_real(df_so_comprasnet['valorGlobal'].sum()))
-                
-                # Análise por status
-                status_counts = df_so_comprasnet['status'].value_counts()
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Vigentes", status_counts.get('Vigente', 0))
-                with col2:
-                    st.metric("Vencidos", status_counts.get('Vencido', 0))
-                
+                df_so_comprasnet = df_so_comprasnet.reset_index(drop=True)
                 st.dataframe(df_so_comprasnet, use_container_width=True)
+                
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                    df_so_comprasnet.to_excel(writer, index=False, sheet_name="Restos a pagar")
+                    df_so_comprasnet.to_excel(writer, index=False, sheet_name="Só ComprasNet")
                 buffer.seek(0)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                st.download_button(label="⬇️ Baixar dados", data=buffer, file_name=f"Dados comprasnet {timestamp}.xlsx",
+                st.download_button(label="⬇️ Baixar dados", data=buffer, 
+                    file_name=f"Contratos presentes apenas no ComprasNet {timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
-                st.success("Todos os contratos do ComprasNet foram encontrados no Portal!")
+                st.success("✅ Todos os contratos do ComprasNet foram encontrados no Portal!")
         
         with rec_tab3:
             st.subheader("Contratos presentes apenas no Portal TRF5")
-            st.markdown("""**Atenção:** Estes contratos estão no Portal TRF5 mas não foram encontrados no ComprasNet.""")
+            st.markdown("""**Atenção:** Estes contratos estão no Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar) mas não foram encontrados no ComprasNet.""")
             
             if len(contratos_so_portal) > 0:
-                colunas_portal = [col_contrato_portal]
-                for col in ['Favorecido Nome', 'Valor Empenhos Total', 'Data Emissão', 'Ano']:
-                    if col in df_portal_rec.columns:
-                        colunas_portal.append(col)
+                # Preparar dados resumidos para visualização
+                colunas_exibir = ['Contrato', 'Origem portal']
+                for col in ['Favorecido Nome', 'Valor Empenhos Total', 'Data Emissão', 'Ano', 'Valor']:
+                    if col in df_portal_consolidado.columns:
+                        colunas_exibir.append(col)
+                df_so_portal_resumo = df_portal_consolidado[df_portal_consolidado['Contrato'].isin(contratos_so_portal)][colunas_exibir].drop_duplicates(subset=['Contrato'])
+                valor_col = 'Valor Empenhos Total' if 'Valor Empenhos Total' in df_so_portal_resumo.columns else (
+                    'Valor' if 'Valor' in df_so_portal_resumo.columns else 'Contrato')
                 
-                df_so_portal = df_portal_rec[df_portal_rec[col_contrato_portal].isin(contratos_so_portal)][
-                    colunas_portal].drop_duplicates(subset=[col_contrato_portal]).sort_values(
-                    'Valor Empenhos Total' if 'Valor Empenhos Total' in colunas_portal else col_contrato_portal, ascending=False)
-                
-                st.metric("Total de Contratos", f"{len(df_so_portal):,}")
-                
-                if 'Valor Empenhos Total' in df_so_portal.columns:
-                    total_val = pd.to_numeric(df_so_portal['Valor Empenhos Total'], errors='coerce').sum()
-                    st.metric("Valor Total Empenhado", formatar_real(total_val))
-                st.dataframe(df_so_portal, use_container_width=True)
-                
-                buffer = io.BytesIO()
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total de Contratos", f"{len(df_so_portal_resumo):,}")
+                with col2:
+                    if 'Valor Empenhos Total' in df_so_portal_resumo.columns:
+                        total_val = pd.to_numeric(df_so_portal_resumo['Valor Empenhos Total'], errors='coerce').sum()
+                        st.metric("Valor Total Empenhado", formatar_real(total_val))
+                    elif 'Valor' in df_so_portal_resumo.columns:
+                        total_val = pd.to_numeric(df_so_portal_resumo['Valor'], errors='coerce').sum()
+                        st.metric("Valor Total", formatar_real(total_val))
+                df_so_portal_resumo = df_so_portal_resumo.reset_index(drop=True)
+                st.dataframe(df_so_portal_resumo, use_container_width=True)
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                    df_so_portal.to_excel(writer, index=False, sheet_name="Restos a pagar")
+                    df_so_portal_resumo.to_excel(writer, index=False, sheet_name="Só ComprasNet")
                 buffer.seek(0)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                st.download_button(label="⬇️ Baixar dados", data=buffer, file_name=f"Dados Portal TRF5 {timestamp}.xlsx",
+                st.download_button(label="⬇️ Baixar dados", data=buffer, 
+                    file_name=f"Contratos presentes apenas no Portal TRF5 {timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
-                st.success("Todos os contratos do Portal foram encontrados no ComprasNet!")
+                st.success("✅ Todos os contratos do Portal foram encontrados no ComprasNet!")
 
-# ==================== ABA 9: BUSCADOR ====================
-# with tab7:
-#     st.header("🔍 Buscador")
-    
-#     # OPÇÃO DE BUSCA: SIMPLIFICADA VS DETALHADA
-#     tipo_busca = st.radio(
-#         "Selecione o tipo de busca:",
-#         ["📋 Simplificada (Resumo)", "🔬 Detalhada (Portal TRF5)"],
-#         horizontal=True
-#     )
-    
-#     st.markdown("---")
-    
-#     if tipo_busca == "📋 Simplificada (Resumo)":
-#         # BUSCA SIMPLIFICADA - USA DADOS DO RESUMO
-#         st.subheader("📋 Busca Simplificada - Dados Resumidos")
-#         st.info("💡 Busca rápida nos dados consolidados por centro de custo")
-        
-#         # Filtros
-#         col1, col2, col3 = st.columns(3)
-        
-#         with col1:
-#             anos_busca = sorted(df_resumo['Ano'].unique())
-#             ano_busca = st.multiselect("Ano", options=anos_busca, default=[], key="ano_busca_simp")
-        
-#         with col2:
-#             gestores_busca = sorted([g for g in df_resumo['Gestor(a)'].unique() if g != 'Não informado'])
-#             gestor_busca = st.selectbox("Gestor", options=['Todos'] + gestores_busca, key="gestor_busca_simp")
-        
-#         with col3:
-#             centros_busca = sorted([c for c in df_resumo['Centro de Custo'].unique() if c != 'Não informado'])[:100]
-#             centro_busca = st.selectbox("Centro de Custo", options=['Todos'] + centros_busca, key="centro_busca_simp")
-        
-#         # Busca textual
-#         busca_texto_simp = st.text_input("🔍 Busca livre (Gestor, Centro de Custo):", "", key="texto_busca_simp")
-        
-#         # Aplicar filtros
-#         df_busca_simp = df_resumo.copy()
-        
-#         if ano_busca:
-#             df_busca_simp = df_busca_simp[df_busca_simp['Ano'].isin(ano_busca)]
-        
-#         if gestor_busca != 'Todos':
-#             df_busca_simp = df_busca_simp[df_busca_simp['Gestor(a)'] == gestor_busca]
-        
-#         if centro_busca != 'Todos':
-#             df_busca_simp = df_busca_simp[df_busca_simp['Centro de Custo'] == centro_busca]
-        
-#         if busca_texto_simp:
-#             mask = (
-#                 df_busca_simp['Gestor(a)'].astype(str).str.contains(busca_texto_simp, case=False, na=False) |
-#                 df_busca_simp['Centro de Custo'].astype(str).str.contains(busca_texto_simp, case=False, na=False)
-#             )
-#             df_busca_simp = df_busca_simp[mask]
-        
-#         # Métricas
-#         st.markdown("---")
-#         col1, col2, col3, col4 = st.columns(4)
-        
-#         with col1:
-#             st.metric("Registros", f"{len(df_busca_simp):,}")
-#         with col2:
-#             st.metric("Limite", formatar_real(df_busca_simp['Limite'].sum()))
-#         with col3:
-#             st.metric("Empenhado", formatar_real(df_busca_simp['Empenhado'].sum()))
-#         with col4:
-#             st.metric("Pago", formatar_real(df_busca_simp['Valor Empenhos Pagos'].sum()))
-        
-#         # Resultados
-#         st.markdown("---")
-#         st.subheader("📊 Resultados")
-        
-#         df_busca_display = df_busca_simp[['Ano', 'Gestor(a)', 'Centro de Custo', 'Limite', 
-#                                           'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos']].copy()
-        
-#         for col in ['Limite', 'Pré-empenhado', 'Empenhado', 'Valor Empenhos Pagos']:
-#             df_busca_display[col] = df_busca_display[col].apply(formatar_real)
-        
-#         st.dataframe(df_busca_display, use_container_width=True)
-        
-#         # Download
-#         csv = df_busca_simp.to_csv(index=False).encode('utf-8')
-#         st.download_button(
-#             label="📥 Baixar resultados (CSV)",
-#             data=csv,
-#             file_name=f"busca_simplificada_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-#             mime="text/csv"
-#         )
-    
-#     else:
-#         # BUSCA DETALHADA - USA DADOS DE RESUMO
-#         st.subheader("🔬 Busca Detalhada - Histórico de Modificações")
-#         st.info("💡 Busca nos dados do Portal TRF5, com registro histórico de cada modificação")
-        
-#         df_portal = df_resumo.copy()
-        
-#         if len(df_portal) == 0:
-#             st.warning("Dados do portal não disponíveis.")
-#         else:
-#             # Filtros
-#             col1, col2, col3, col4 = st.columns(4)
-            
-#             with col1:
-#                 if 'Ano' in df_portal.columns:
-#                     anos_portal = ['Todos'] + sorted(df_portal['Ano'].dropna().unique().tolist())
-#                     ano_portal_sel = st.multiselect("Ano", anos_portal, default=['Todos'], key="ano_portal")
-            
-#             with col2:
-#                 if 'Centro de Custo' in df_portal.columns:
-#                     centros_portal = ['Todos'] + sorted(df_portal['Centro de Custo'].dropna().unique().tolist()[:100])
-#                     centro_portal_sel = st.selectbox("Centro de Custo", centros_portal, key="centro_portal")
-            
-#             with col3:
-#                 if 'Gestores' in df_portal.columns:
-#                     gestores_portal = ['Todos'] + sorted(df_portal['Gestores'].dropna().unique().tolist()[:100])
-#                     gestor_portal_sel = st.selectbox("Gestor", gestores_portal, key="gestor_portal")
-            
-#             with col4:
-#                 if 'Tipo Nome' in df_portal.columns:
-#                     tipos_portal = ['Todos'] + sorted(df_portal['Tipo Nome'].dropna().unique().tolist())
-#                     tipo_portal_sel = st.selectbox("Tipo de Documento", tipos_portal, key="tipo_portal")
-            
-#             # Busca textual
-#             col1, col2 = st.columns([3, 1])
-            
-#             with col1:
-#                 busca_texto = st.text_input("🔍 Busca livre (Empenho, Favorecido, Processo):", "", key="texto_portal")
-            
-#             with col2:
-#                 limite_registros = st.selectbox("Limite de registros", [100, 500, 1000, 5000], index=1, key="limite_portal")
-            
-#             # Aplicar filtros
-#             df_portal_filtered = df_portal.copy()
-            
-#             if 'Ano' in df_portal.columns and 'Todos' not in ano_portal_sel and ano_portal_sel:
-#                 df_portal_filtered = df_portal_filtered[df_portal_filtered['Ano'].isin(ano_portal_sel)]
-            
-#             if 'Centro de Custo' in df_portal.columns and centro_portal_sel != 'Todos':
-#                 df_portal_filtered = df_portal_filtered[df_portal_filtered['Centro de Custo'] == centro_portal_sel]
-            
-#             if 'Gestores' in df_portal.columns and gestor_portal_sel != 'Todos':
-#                 df_portal_filtered = df_portal_filtered[df_portal_filtered['Gestores'] == gestor_portal_sel]
-            
-#             if 'Tipo Nome' in df_portal.columns and tipo_portal_sel != 'Todos':
-#                 df_portal_filtered = df_portal_filtered[df_portal_filtered['Tipo Nome'] == tipo_portal_sel]
-            
-#             # Busca textual
-#             if busca_texto:
-#                 mask = False
-#                 for col in ['Nota Empenho', 'Favorecido Nome', 'Número Processo', 'Empenho']:
-#                     if col in df_portal_filtered.columns:
-#                         mask = mask | df_portal_filtered[col].astype(str).str.contains(busca_texto, case=False, na=False)
-#                 df_portal_filtered = df_portal_filtered[mask]
-            
-#             # Limitar registros
-#             df_portal_filtered = df_portal_filtered.head(limite_registros)
-            
-#             st.markdown("---")
-            
-#             # Métricas do resultado
-#             col1, col2, col3, col4 = st.columns(4)
-            
-#             with col1:
-#                 st.metric("Registros Encontrados", f"{len(df_portal_filtered):,}")
-            
-#             with col2:
-#                 if 'Valor Empenhos Total' in df_portal_filtered.columns:
-#                     total_emp_portal = pd.to_numeric(df_portal_filtered['Valor Empenhos Total'], errors='coerce').sum()
-#                     st.metric("Valor Total Empenhos", formatar_real(total_emp_portal))
-            
-#             with col3:
-#                 if 'Valor Empenhos Pagos' in df_portal_filtered.columns:
-#                     total_pago_portal = pd.to_numeric(df_portal_filtered['Valor Empenhos Pagos'], errors='coerce').sum()
-#                     st.metric("Valor Total Pago", formatar_real(total_pago_portal))
-            
-#             with col4:
-#                 if 'Ano' in df_portal_filtered.columns:
-#                     anos_unicos = df_portal_filtered['Ano'].nunique()
-#                     st.metric("Anos Cobertos", f"{anos_unicos}")
-            
-#             # Seleção de colunas para exibição
-#             st.markdown("---")
-#             st.subheader("📋 Resultados da Busca")
-            
-#             colunas_disponiveis = df_portal_filtered.columns.tolist()
-            
-#             # Colunas padrão sugeridas
-#             colunas_padrao = ['Ano', 'Centro de Custo', 'Gestores', 'Nota Empenho', 'Favorecido Nome', 
-#                              'Tipo Nome', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Data Emissão']
-#             colunas_padrao = [c for c in colunas_padrao if c in colunas_disponiveis]
-            
-#             colunas_selecionadas = st.multiselect(
-#                 "Selecione as colunas para visualização:",
-#                 options=colunas_disponiveis,
-#                 default=colunas_padrao,
-#                 key="colunas_portal"
-#             )
-            
-#             if colunas_selecionadas:
-#                 df_exibir = df_portal_filtered[colunas_selecionadas].copy()
-                
-#                 # Formatar valores monetários
-#                 colunas_monetarias = [col for col in colunas_selecionadas if 'Valor' in col or 'R$' in col]
-#                 for col in colunas_monetarias:
-#                     try:
-#                         df_exibir[col] = pd.to_numeric(df_exibir[col], errors='coerce')
-#                         df_exibir[col] = df_exibir[col].apply(lambda x: formatar_real(x) if pd.notna(x) else '-')
-#                     except:
-#                         pass
-                
-#                 st.dataframe(df_exibir, use_container_width=True)
-                
-#                 # Download
-#                 csv = df_portal_filtered[colunas_selecionadas].to_csv(index=False).encode('utf-8')
-#                 st.download_button(
-#                     label="📥 Baixar resultados (CSV)",
-#                     data=csv,
-#                     file_name=f"busca_portal_trf5_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-#                     mime="text/csv",
-#                     key="download_portal"
-#                 )
-#             else:
-#                 st.warning("Selecione pelo menos uma coluna para visualização.")
-            
-#             # Análise rápida
-#             if len(df_portal_filtered) > 0:
-#                 st.markdown("---")
-#                 st.subheader("📊 Análise Rápida dos Resultados")
-                
-#                 col1, col2 = st.columns(2)
-                
-#                 with col1:
-#                     # Por tipo de documento
-#                     if 'Tipo Nome' in df_portal_filtered.columns:
-#                         tipo_count = df_portal_filtered['Tipo Nome'].value_counts().head(10)
-                        
-#                         fig_tipo = go.Figure(data=[go.Pie(
-#                             labels=tipo_count.index,
-#                             values=tipo_count.values,
-#                             hole=0.4
-#                         )])
-                        
-#                         fig_tipo.update_layout(
-#                             title="Distribuição por Tipo de Documento",
-#                             height=400
-#                         )
-                        
-#                         st.plotly_chart(fig_tipo, use_container_width=True)
-                
-#                 with col2:
-#                     # Por grupo de despesa
-#                     if 'Grupo Despesa Nome' in df_portal_filtered.columns:
-#                         grupo_count = df_portal_filtered['Grupo Despesa Nome'].value_counts().head(10)
-                        
-#                         fig_grupo_portal = go.Figure()
-#                         fig_grupo_portal.add_trace(go.Bar(
-#                             x=grupo_count.values,
-#                             y=grupo_count.index,
-#                             orientation='h',
-#                             marker_color='#0068c9'
-#                         ))
-                        
-#                         fig_grupo_portal.update_layout(
-#                             title="Top 10 Grupos de Despesa",
-#                             height=400,
-#                             xaxis_title="Quantidade",
-#                             yaxis_title="",
-#                             yaxis={'categoryorder':'total ascending'}
-#                         )
-                        
-#                         st.plotly_chart(fig_grupo_portal, use_container_width=True)
-
-# ==================== ABA 10: ANÁLISE DETALHADA DE CONTRATOS ====================
+# ==================== ABA 7: ANÁLISE DETALHADA DE CONTRATOS ====================
 with tab7:
-    st.header("📈 Análise Detalhada de Contratos")
-    st.markdown("""
-    Esta aba apresenta uma análise aprofundada cruzando dados de contratos com informações 
-    de empenhos, gestores e centros de custos.
-    """)
-    
-    # Fazer LEFT JOIN entre contratos e empenhos
+    st.header("Alertas para Gestores e Centros de Custo")
+    st.markdown("""Esta aba apresenta uma análise dos contratos compatibilizados entre Comprasnet e Portal TRF5.""")
     # Normalizar números de contrato
     def normalizar_contrato(num_contrato):
         """Remove zeros à esquerda e normaliza o número do contrato"""
@@ -1754,419 +1443,233 @@ with tab7:
                 return f"{num_sem_zeros}/{partes[1]}"
             return num_sem_zeros
         return num_str.lstrip('0') or '0'
+    df_comprasnet2 = df_comprasnet.copy()
+    df_comprasnet2["contrato_norm"] = df_comprasnet2["numeroContrato"].apply(normalizar_contrato)
+    df_resumo["contrato_norm"] = df_resumo["Contrato"].apply(normalizar_contrato)
+    contratos_em_ambos = set(df_comprasnet2["contrato_norm"]).intersection(set(df_resumo["contrato_norm"]))
+    df_resumo_filtrado = df_resumo[df_resumo["contrato_norm"].isin(contratos_em_ambos)]
+    df_resumo_comprasnet = df_resumo_filtrado.merge(df_comprasnet2, on="contrato_norm", how="left")   
     
-    # Preparar dados
-    df_contratos_join = df.copy()
-    df_contratos_join['numeroContrato_norm'] = df_contratos_join['numeroContrato'].apply(normalizar_contrato)
+    # Criar base única de contratos (para alertas de vigência)
+    df_contratos = df_resumo_comprasnet.groupby('contrato_norm').agg({
+        'numeroContrato': 'first',
+        'nomeRazaoSocialFornecedor': 'first',
+        'dataVigenciaInicial': 'first',
+        'dataVigenciaFinal': 'first',
+        'valorGlobal': 'first',
+        'status': 'first',
+        'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
+        'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()
     
-    # Extrair ano do contrato se não existir
-    if 'ano' not in df_contratos_join.columns:
-        df_contratos_join['ano'] = df_contratos_join['numeroContrato'].str.extract(r'/(\d{4})')[0]
+    # Calcular valores
+    df_contratos['Valor a Pagar'] = df_contratos['Valor Empenhos Total'] - df_contratos['Valor Empenhos Pagos']
     
-    # Converter ano para string para compatibilidade com merge
-    df_contratos_join['ano'] = df_contratos_join['ano'].astype(str)
+    # Converter datas
+    df_contratos['dataVigenciaFinal'] = pd.to_datetime(df_contratos['dataVigenciaFinal'], errors='coerce')
+    df_contratos['dataVigenciaInicial'] = pd.to_datetime(df_contratos['dataVigenciaInicial'], errors='coerce')
     
-    # Preparar empenhos
-    if len(df_empenhos) > 0:
-        df_empenhos_join = df_empenhos.copy()
-        
-        # Tentar encontrar coluna de contrato
-        col_contrato_emp = None
-        for col in ['Contrato', 'Número Contrato', 'numeroContrato', 'Empenho']:
-            if col in df_empenhos_join.columns:
-                col_contrato_emp = col
-                break
-        
-        if col_contrato_emp:
-            df_empenhos_join['numeroContrato_norm'] = df_empenhos_join[col_contrato_emp].apply(normalizar_contrato)
-            
-            # Preparar colunas para agregação - verificar quais existem
-            agg_dict = {}
-            if 'Valor Empenhado' in df_empenhos_join.columns:
-                agg_dict['Valor Empenhado'] = 'sum'
-            if 'Valor Pago' in df_empenhos_join.columns:
-                agg_dict['Valor Pago'] = 'sum'
-            
-            # Se tiver colunas para agregar
-            if agg_dict:
-                empenhos_agg = df_empenhos_join.groupby('numeroContrato_norm').agg(agg_dict).reset_index()
-            else:
-                st.warning("⚠️ Colunas financeiras não encontradas nos empenhos")
-                empenhos_agg = pd.DataFrame({'numeroContrato_norm': [], 'Valor Empenhado': [], 'Valor Pago': []})
-            
-            # Garantir que as colunas existam
-            if 'Valor Empenhado' not in empenhos_agg.columns:
-                empenhos_agg['Valor Empenhado'] = 0
-            if 'Valor Pago' not in empenhos_agg.columns:
-                empenhos_agg['Valor Pago'] = 0
-            
-            # Fazer LEFT JOIN
-            df_analise = df_contratos_join.merge(
-                empenhos_agg,
-                on='numeroContrato_norm',
-                how='left',
-                suffixes=('', '_emp')
-            )
+    # Calcular dias até vencimento
+    hoje = pd.Timestamp.now()
+    df_contratos['Dias até Vencimento'] = (df_contratos['dataVigenciaFinal'] - hoje).dt.days
+    
+    # Classificar alertas
+    def classificar_alerta(dias):
+        if pd.isna(dias):
+            return 'Sem Data'
+        elif dias < 0:
+            return 'Vencido'
+        elif dias <= 30:
+            return 'Crítico (≤30 dias)'
+        elif dias <= 90:
+            return 'Atenção (≤90 dias)'
         else:
-            st.warning("⚠️ Não foi possível identificar coluna de contrato nos empenhos")
-            df_analise = df_contratos_join.copy()
-            df_analise['Valor Empenhado'] = 0
-            df_analise['Valor Pago'] = 0
-    else:
-        st.warning("⚠️ Dados de empenhos não disponíveis")
-        df_analise = df_contratos_join.copy()
-        df_analise['Valor Empenhado'] = 0
-        df_analise['Valor Pago'] = 0
+            return 'Normal'
     
-    # Tentar fazer join com resumo (para pegar gestor e centro de custos)
-    if len(df_resumo) > 0:
-        # Preparar resumo agrupado por ano
-        resumo_por_ano = df_resumo.groupby('Ano').agg({
-            'Gestor(a)': lambda x: ', '.join(x.dropna().unique()[:3]),  # Até 3 gestores
-            'Centro de Custo': lambda x: ', '.join(x.dropna().unique()[:3])  # Até 3 centros
-        }).reset_index()
-        
-        # Join com contratos pelo ano
-        df_analise = df_analise.merge(
-            resumo_por_ano,
-            left_on='ano',
-            right_on='Ano',
-            how='left'
-        )
+    df_contratos['Alerta Vigência'] = df_contratos['Dias até Vencimento'].apply(classificar_alerta)
     
-    # Calcular métricas de prazo
-    df_analise['Dias de Vigência'] = (df_analise['dataVigenciaFinal'] - df_analise['dataVigenciaInicial']).dt.days
-    df_analise['Dias até Vencimento'] = (df_analise['dataVigenciaFinal'] - hoje).dt.days
-    df_analise['% Tempo Decorrido'] = (
-        (hoje - df_analise['dataVigenciaInicial']).dt.days / 
-        df_analise['Dias de Vigência'] * 100
-    ).clip(0, 100)
-    
-    # Preencher valores nulos - garantir que as colunas existam
-    if 'Valor Empenhado' not in df_analise.columns:
-        df_analise['Valor Empenhado'] = 0
-    else:
-        df_analise['Valor Empenhado'] = df_analise['Valor Empenhado'].fillna(0)
-    
-    if 'Valor Pago' not in df_analise.columns:
-        df_analise['Valor Pago'] = 0
-    else:
-        df_analise['Valor Pago'] = df_analise['Valor Pago'].fillna(0)
-    
-    # Preencher Gestor e Centro de Custo
-    if 'Gestor(a)' in df_analise.columns:
-        df_analise['Gestor(a)'] = df_analise['Gestor(a)'].fillna('Não informado')
-    else:
-        df_analise['Gestor(a)'] = 'Não informado'
-    
-    if 'Centro de Custo' in df_analise.columns:
-        df_analise['Centro de Custo'] = df_analise['Centro de Custo'].fillna('Não informado')
-    else:
-        df_analise['Centro de Custo'] = 'Não informado'
-    
-    # Calcular % de execução
-    df_analise['% Empenhado'] = (df_analise['Valor Empenhado'] / df_analise['valorGlobal'] * 100).fillna(0).clip(0, 200)
-    df_analise['% Pago'] = (df_analise['Valor Pago'] / df_analise['valorGlobal'] * 100).fillna(0).clip(0, 200)
-    
-    # ============ VISÃO GERAL ============
-    st.markdown("## 📊 Visão Geral")
-    
+    # ===== MÉTRICAS PRINCIPAIS =====
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total de Contratos", len(df_analise))
-        st.metric("Contratos com Empenhos", len(df_analise[df_analise['Valor Empenhado'] > 0]))
+        st.metric("Total Contratos", f"{len(df_contratos):,}")
     
     with col2:
-        st.metric("Valor Total Contratos", formatar_real(df_analise['valorGlobal'].sum()))
-        st.metric("Valor Total Empenhado", formatar_real(df_analise['Valor Empenhado'].sum()))
+        vencidos = len(df_contratos[df_contratos['Alerta Vigência'] == 'Vencido'])
+        st.metric("Vencidos", f"{vencidos:,}", delta_color="inverse")
     
     with col3:
-        st.metric("Valor Total Pago", formatar_real(df_analise['Valor Pago'].sum()))
-        media_exec = df_analise['% Empenhado'].mean()
-        st.metric("% Execução Média", formatar_percentual(media_exec))
+        criticos = len(df_contratos[df_contratos['Alerta Vigência'] == 'Crítico (≤30 dias)'])
+        st.metric("Críticos (≤30d)", f"{criticos:,}", delta_color="inverse")
     
     with col4:
-        prazo_medio = df_analise['Dias de Vigência'].mean()
-        st.metric("Prazo Médio (dias)", f"{prazo_medio:.0f}" if not pd.isna(prazo_medio) else "N/A")
-        tempo_medio = df_analise['% Tempo Decorrido'].mean()
-        st.metric("% Tempo Médio Decorrido", formatar_percentual(tempo_medio))
+        atencao = len(df_contratos[df_contratos['Alerta Vigência'] == 'Atenção (≤90 dias)'])
+        st.metric("Atenção (≤90d)", f"{atencao:,}", delta_color="inverse")
     
     st.markdown("---")
     
-    # ============ ANÁLISE POR PRAZO ============
-    st.markdown("## ⏰ Análise por Prazo")
+    # ===== TABS DE ALERTAS =====
+    tab_vig, tab_gestor, tab_cc = st.tabs(["🚨 Alertas de Vigência", "👤 Por Gestor", "🏢 Por Centro de Custo"])
     
-    # Classificar contratos por faixa de prazo
-    df_analise['Faixa de Prazo'] = pd.cut(
-        df_analise['Dias de Vigência'],
-        bins=[0, 180, 365, 730, 1825, float('inf')],
-        labels=['Até 6 meses', '6-12 meses', '1-2 anos', '2-5 anos', 'Acima de 5 anos']
-    )
-    
-    prazo_analise = df_analise.groupby('Faixa de Prazo', observed=True).agg({
-        'numeroContrato': 'count',
-        'valorGlobal': 'sum',
-        '% Empenhado': 'mean',
-        '% Tempo Decorrido': 'mean'
-    }).reset_index()
-    prazo_analise.columns = ['Faixa de Prazo', 'Quantidade', 'Valor Total', '% Empenhado Médio', '% Tempo Decorrido']
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### Contratos por Faixa de Prazo")
-        fig_prazo = px.bar(
-            prazo_analise,
-            x='Faixa de Prazo',
-            y='Quantidade',
-            text='Quantidade',
-            labels={'Faixa de Prazo': 'Faixa', 'Quantidade': 'Contratos'}
+    # ===== TAB: ALERTAS DE VIGÊNCIA =====
+    with tab_vig:
+        st.subheader("Contratos com Alerta de Vigência")
+        
+        # Filtro
+        alertas_selecionados = st.multiselect(
+            "Filtrar por status:",
+            options=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)', 'Normal', 'Sem Data'],
+            default=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)']
         )
-        fig_prazo.update_traces(textposition='outside')
-        st.plotly_chart(fig_prazo, use_container_width=True)
-    
-    with col2:
-        st.markdown("### % Execução por Faixa de Prazo")
-        fig_exec_prazo = px.bar(
-            prazo_analise,
-            x='Faixa de Prazo',
-            y='% Empenhado Médio',
-            text=prazo_analise['% Empenhado Médio'].apply(lambda x: f"{x:.1f}%"),
-            labels={'Faixa de Prazo': 'Faixa', '% Empenhado Médio': '% Execução'}
-        )
-        fig_exec_prazo.update_traces(textposition='outside', marker_color='#17a2b8')
-        st.plotly_chart(fig_exec_prazo, use_container_width=True)
-    
-    with st.expander("📋 Ver Tabela - Análise por Prazo", expanded=False):
-        prazo_display = prazo_analise.copy()
-        prazo_display['Valor Total'] = prazo_display['Valor Total'].apply(formatar_real)
-        prazo_display['% Empenhado Médio'] = prazo_display['% Empenhado Médio'].apply(formatar_percentual)
-        prazo_display['% Tempo Decorrido'] = prazo_display['% Tempo Decorrido'].apply(formatar_percentual)
-        st.dataframe(prazo_display, use_container_width=True)
-    
-    st.markdown("---")
-    
-    # ============ ANÁLISE POR GESTOR ============
-    st.markdown("## 👤 Análise por Gestor")
-    
-    if 'Gestor(a)' in df_analise.columns:
-        gestor_analise = df_analise.groupby('Gestor(a)').agg({
-            'numeroContrato': 'count',
-            'valorGlobal': 'sum',
-            'Valor Empenhado': 'sum',
-            'Valor Pago': 'sum',
-            'Dias até Vencimento': 'mean'
-        }).reset_index()
-        gestor_analise = gestor_analise[gestor_analise['Gestor(a)'] != 'Não informado']
-        gestor_analise.columns = ['Gestor', 'Contratos', 'Valor Total', 'Empenhado', 'Pago', 'Dias Médios p/ Vencimento']
-        gestor_analise = gestor_analise.sort_values('Valor Total', ascending=False)
         
-        # Top 15 gestores
-        top_gestores_detalhado = gestor_analise.head(15)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("### Top 15 Gestores - Valor Total")
-            fig_gest = go.Figure()
-            fig_gest.add_trace(go.Bar(
-                x=top_gestores_detalhado['Valor Total'],
-                y=top_gestores_detalhado['Gestor'],
-                orientation='h',
-                marker_color='#0068c9',
-                text=top_gestores_detalhado['Valor Total'].apply(formatar_real),
-                textposition='auto'
-            ))
-            fig_gest.update_layout(
-                xaxis_title="Valor (R$)",
-                yaxis_title="",
-                height=500,
-                yaxis={'categoryorder':'total ascending'}
-            )
-            st.plotly_chart(fig_gest, use_container_width=True)
-        
-        with col2:
-            st.markdown("### Top 15 Gestores - Execução")
-            top_gestores_detalhado_exec = top_gestores_detalhado.copy()
-            top_gestores_detalhado_exec['% Execução'] = (
-                top_gestores_detalhado_exec['Empenhado'] / 
-                top_gestores_detalhado_exec['Valor Total'] * 100
-            )
+        if alertas_selecionados:
+            df_filtrado = df_contratos[df_contratos['Alerta Vigência'].isin(alertas_selecionados)].copy()
+            df_filtrado = df_filtrado.sort_values('Dias até Vencimento', na_position='last')
             
-            fig_gest_exec = go.Figure()
-            fig_gest_exec.add_trace(go.Bar(
-                x=top_gestores_detalhado_exec['% Execução'],
-                y=top_gestores_detalhado_exec['Gestor'],
-                orientation='h',
-                marker_color='#28a745',
-                text=top_gestores_detalhado_exec['% Execução'].apply(formatar_percentual),
-                textposition='auto'
-            ))
-            fig_gest_exec.update_layout(
-                xaxis_title="% Execução",
-                yaxis_title="",
-                height=500,
-                yaxis={'categoryorder':'total ascending'}
+            # Para cada contrato, pegar gestores e CCs (podem ser múltiplos)
+            # Criar string com todos os gestores/CCs únicos deste contrato
+            gestores_por_contrato = df_resumo.groupby('contrato_norm')['Gestor(a)'].apply(
+                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))
+            ).to_dict()
+            
+            cc_por_contrato = df_resumo.groupby('contrato_norm')['Centro de Custo'].apply(
+                lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))
+            ).to_dict()
+            
+            df_filtrado['Gestores'] = df_filtrado['contrato_norm'].map(gestores_por_contrato)
+            df_filtrado['Centros de Custo'] = df_filtrado['contrato_norm'].map(cc_por_contrato)
+            
+            # Preparar para exibição
+            df_exibir = df_filtrado[[
+                'numeroContrato', 'nomeRazaoSocialFornecedor', 'Gestores', 'Centros de Custo',
+                'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência',
+                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar'
+            ]].copy()
+            
+            # Formatar data
+            df_exibir['dataVigenciaFinal'] = df_exibir['dataVigenciaFinal'].dt.strftime('%d/%m/%Y')
+            
+            # Renomear
+            df_exibir.columns = [
+                'Contrato', 'Fornecedor', 'Gestores', 'Centros de Custo',
+                'Vencimento', 'Dias', 'Alerta',
+                'Valor Global', 'Empenhado', 'Pago', 'A Pagar'
+            ]
+            
+            st.metric("Contratos Filtrados", f"{len(df_exibir):,}")
+            st.dataframe(df_exibir, use_container_width=True, height=500)
+            
+            # Download
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                df_exibir.to_excel(writer, index=False, sheet_name="Alertas")
+            buffer.seek(0)
+            st.download_button(
+                "⬇️ Baixar Excel",
+                buffer,
+                f"alertas_vigencia_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            st.plotly_chart(fig_gest_exec, use_container_width=True)
+    
+    # ===== TAB: POR GESTOR =====
+    with tab_gestor:
+        st.subheader("Resumo por Gestor")
         
-        with st.expander("📋 Ver Tabela - Análise por Gestor", expanded=False):
-            gestor_display = gestor_analise.copy()
-            gestor_display['Valor Total'] = gestor_display['Valor Total'].apply(formatar_real)
-            gestor_display['Empenhado'] = gestor_display['Empenhado'].apply(formatar_real)
-            gestor_display['Pago'] = gestor_display['Pago'].apply(formatar_real)
-            gestor_display['Dias Médios p/ Vencimento'] = gestor_display['Dias Médios p/ Vencimento'].apply(
-                lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
-            )
-            st.dataframe(gestor_display, use_container_width=True)
-    else:
-        st.info("Dados de gestor não disponíveis para análise")
-    
-    st.markdown("---")
-    
-    # ============ ANÁLISE POR CENTRO DE CUSTOS ============
-    st.markdown("## 🏢 Análise por Centro de Custos")
-    
-    if 'Centro de Custo' in df_analise.columns:
-        centro_analise = df_analise.groupby('Centro de Custo').agg({
-            'numeroContrato': 'count',
-            'valorGlobal': 'sum',
-            'Valor Empenhado': 'sum',
-            'Dias de Vigência': 'mean',
-            '% Tempo Decorrido': 'mean'
+        # Trabalhar com df_resumo original, agrupando por gestor + contrato
+        # Depois somar por gestor
+        df_gestor_contrato = df_resumo_comprasnet.groupby(['Gestor(a)', 'contrato_norm']).agg({
+            'valorGlobal': 'first',  # Valor global é o mesmo
+            'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
+            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum(),
         }).reset_index()
-        centro_analise = centro_analise[centro_analise['Centro de Custo'] != 'Não informado']
-        centro_analise.columns = ['Centro de Custo', 'Contratos', 'Valor Total', 'Empenhado', 'Prazo Médio (dias)', '% Tempo Decorrido']
-        centro_analise = centro_analise.sort_values('Valor Total', ascending=False)
         
-        # Top 15 centros
-        top_centros_detalhado = centro_analise.head(15)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("### Top 15 Centros - Contratos")
-            fig_centro = px.bar(
-                top_centros_detalhado,
-                x='Contratos',
-                y='Centro de Custo',
-                orientation='h',
-                text='Contratos',
-                labels={'Contratos': 'Quantidade', 'Centro de Custo': ''}
-            )
-            fig_centro.update_traces(textposition='outside', marker_color='#ffc107')
-            fig_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_centro, use_container_width=True)
-        
-        with col2:
-            st.markdown("### Top 15 Centros - Prazo Médio")
-            fig_prazo_centro = px.bar(
-                top_centros_detalhado,
-                x='Prazo Médio (dias)',
-                y='Centro de Custo',
-                orientation='h',
-                text=top_centros_detalhado['Prazo Médio (dias)'].apply(lambda x: f"{x:.0f}"),
-                labels={'Prazo Médio (dias)': 'Dias', 'Centro de Custo': ''}
-            )
-            fig_prazo_centro.update_traces(textposition='outside', marker_color='#17a2b8')
-            fig_prazo_centro.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_prazo_centro, use_container_width=True)
-        
-        with st.expander("📋 Ver Tabela - Análise por Centro de Custos", expanded=False):
-            centro_display = centro_analise.copy()
-            centro_display['Valor Total'] = centro_display['Valor Total'].apply(formatar_real)
-            centro_display['Empenhado'] = centro_display['Empenhado'].apply(formatar_real)
-            centro_display['Prazo Médio (dias)'] = centro_display['Prazo Médio (dias)'].apply(
-                lambda x: f"{x:.0f}" if not pd.isna(x) else "N/A"
-            )
-            centro_display['% Tempo Decorrido'] = centro_display['% Tempo Decorrido'].apply(formatar_percentual)
-            st.dataframe(centro_display, use_container_width=True)
-    else:
-        st.info("Dados de centro de custos não disponíveis para análise")
-    
-    st.markdown("---")
-    
-    # ============ BUSCA DETALHADA ============
-    st.markdown("## 🔍 Busca Detalhada")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        status_filtro_det = st.multiselect(
-            "Status",
-            options=df_analise['status'].unique().tolist(),
-            default=[],
-            key="status_filtro_detalhado"
+        df_gestor_contrato['Valor a Pagar'] = (
+            df_gestor_contrato['Valor Empenhos Total'] - 
+            df_gestor_contrato['Valor Empenhos Pagos']
         )
-    
-    with col2:
-        if 'Gestor(a)' in df_analise.columns:
-            gestores_disp = sorted([g for g in df_analise['Gestor(a)'].unique() if g != 'Não informado'])
-            gestor_filtro_det = st.multiselect(
-                "Gestor",
-                options=gestores_disp,
-                default=[],
-                key="gestor_filtro_detalhado"
-            )
-        else:
-            gestor_filtro_det = []
-    
-    with col3:
-        faixa_prazo_filtro = st.multiselect(
-            "Faixa de Prazo",
-            options=['Até 6 meses', '6-12 meses', '1-2 anos', '2-5 anos', 'Acima de 5 anos'],
-            default=[],
-            key="prazo_filtro_detalhado"
+        
+        # Merge com alertas
+        df_gestor_contrato = df_gestor_contrato.merge(
+            df_contratos[['contrato_norm', 'Alerta Vigência']], 
+            on='contrato_norm', 
+            how='left'
         )
-    
-    # Aplicar filtros
-    df_detalhado_filtrado = df_analise.copy()
-    
-    if status_filtro_det:
-        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['status'].isin(status_filtro_det)]
-    
-    if gestor_filtro_det and 'Gestor(a)' in df_detalhado_filtrado.columns:
-        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['Gestor(a)'].isin(gestor_filtro_det)]
-    
-    if faixa_prazo_filtro:
-        df_detalhado_filtrado = df_detalhado_filtrado[df_detalhado_filtrado['Faixa de Prazo'].isin(faixa_prazo_filtro)]
-    
-    # Exibir resultados
-    st.markdown(f"### Resultados: {len(df_detalhado_filtrado)} contratos")
-    
-    if len(df_detalhado_filtrado) > 0:
-        # Selecionar colunas para exibição
-        colunas_exibir = [
-            'numeroContrato', 'nomeRazaoSocialFornecedor', 'valorGlobal',
-            'Valor Empenhado', 'Valor Pago', '% Empenhado', '% Pago',
-            'Dias de Vigência', 'Dias até Vencimento', '% Tempo Decorrido', 'status'
-        ]
         
-        if 'Gestor(a)' in df_detalhado_filtrado.columns:
-            colunas_exibir.append('Gestor(a)')
-        if 'Centro de Custo' in df_detalhado_filtrado.columns:
-            colunas_exibir.append('Centro de Custo')
+        # Agregar por gestor
+        df_por_gestor = df_gestor_contrato.groupby('Gestor(a)').agg({
+            'contrato_norm': 'count',
+            'valorGlobal': 'sum',
+            'Valor Empenhos Total': 'sum',
+            'Valor Empenhos Pagos': 'sum',
+            'Valor a Pagar': 'sum',
+            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()
+        }).reset_index()
         
-        # Filtrar apenas colunas que existem
-        colunas_exibir = [col for col in colunas_exibir if col in df_detalhado_filtrado.columns]
+        df_por_gestor.columns = ['Gestor', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
+        df_por_gestor = df_por_gestor.sort_values('Valor Global', ascending=False)
         
-        df_resultado_detalhado = df_detalhado_filtrado[colunas_exibir].copy()
-        df_resultado_detalhado = df_resultado_detalhado.sort_values('Dias até Vencimento')
-        
-        st.dataframe(df_resultado_detalhado, use_container_width=True)
+        st.dataframe(df_por_gestor, use_container_width=True, height=500)
         
         # Download
-        csv = df_resultado_detalhado.to_csv(index=False).encode('utf-8')
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df_por_gestor.to_excel(writer, index=False, sheet_name="Por Gestor")
+        buffer.seek(0)
         st.download_button(
-            label="📥 Baixar resultados completos (CSV)",
-            data=csv,
-            file_name=f"analise_detalhada_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            key="download_detalhado"
+            "⬇️ Baixar Excel",
+            buffer,
+            f"resumo_por_gestor_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-    else:
-        st.info("Nenhum contrato encontrado com os filtros selecionados")
+    
+    # ===== TAB: POR CENTRO DE CUSTO =====
+    with tab_cc:
+        st.subheader("Resumo por Centro de Custo")
+        
+        # Trabalhar com df_resumo original, agrupando por CC + contrato
+        df_cc_contrato = df_resumo_comprasnet.groupby(['Centro de Custo', 'contrato_norm']).agg({
+            'valorGlobal': 'first',
+            'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
+            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum(),
+        }).reset_index()
+        
+        df_cc_contrato['Valor a Pagar'] = (
+            df_cc_contrato['Valor Empenhos Total'] - 
+            df_cc_contrato['Valor Empenhos Pagos']
+        )
+        
+        # Merge com alertas
+        df_cc_contrato = df_cc_contrato.merge(
+            df_contratos[['contrato_norm', 'Alerta Vigência']], 
+            on='contrato_norm', 
+            how='left'
+        )
+        
+        # Agregar por CC
+        df_por_cc = df_cc_contrato.groupby('Centro de Custo').agg({
+            'contrato_norm': 'count',
+            'valorGlobal': 'sum',
+            'Valor Empenhos Total': 'sum',
+            'Valor Empenhos Pagos': 'sum',
+            'Valor a Pagar': 'sum',
+            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()
+        }).reset_index()
+        
+        df_por_cc.columns = ['Centro de Custo', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
+        df_por_cc = df_por_cc.sort_values('Valor Global', ascending=False)
+        
+        st.dataframe(df_por_cc, use_container_width=True, height=500)
+        
+        # Download
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df_por_cc.to_excel(writer, index=False, sheet_name="Por Centro de Custo")
+        buffer.seek(0)
+        st.download_button(
+            "⬇️ Baixar Excel",
+            buffer,
+            f"resumo_por_cc_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 # Rodapé
 st.markdown("---")
