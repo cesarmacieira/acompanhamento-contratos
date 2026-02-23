@@ -549,8 +549,8 @@ with tab1:
                                 placeholder="Selecione uma ou mais opções")
     busca_texto = c8.text_input("Busca livre (objeto / informações complementares)")
     c9, c10, c11, c12 = st.columns(4)
-    data_ini = c9.date_input("Vigência final a partir de",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
-    data_fim = c10.date_input("Vigência final até",value=df_comprasnet["dataVigenciaFinal"].max().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].max()) else None)
+    data_ini = c9.date_input("Data inicial de vigÊncia",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
+    data_fim = c10.date_input("Data final de vigência",value=df_comprasnet["dataVigenciaFinal"].max().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].max()) else None)
     numero_contrato = c11.multiselect("Número do contrato",sorted(df_comprasnet["numeroContrato"].dropna().unique()),
                                 placeholder="Selecione uma ou mais opções")
     valor_parcela_min, valor_parcela_max = c12.slider("Valor do contrato (R$)",float(df_comprasnet["valorGlobal"].min()),
@@ -589,7 +589,7 @@ with tab1:
         df_comprasnet_f.sort_values("Data de Vigência Final").to_excel(writer, index=False, sheet_name="Contratos")
     buffer.seek(0)
 
-    st.download_button(label="⬇️ Baixar contratos", data=buffer, file_name="contratos.xlsx",
+    st.download_button(label="⬇️ Baixar dados", data=buffer, file_name="contratos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ==================== ABA 2: ALERTAS ====================
@@ -1657,11 +1657,14 @@ with tab6:
         rec_tab1, rec_tab2, rec_tab3 = st.tabs(["Em Ambos", "Somente ComprasNet", "Somente Portal"])
         with rec_tab1:
             st.subheader("Contratos presentes em ambas as bases")
+            busca_ambos = st.text_input("🔍 Pesquisar por número de contrato", key="busca_ambos", placeholder="Ex: 47/2023")
             if len(contratos_ambos) > 0:
                 df_ambos = df_comprasnet_copy[df_comprasnet_copy['numeroContrato'].isin(contratos_ambos)][
                     ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
                      'dataVigenciaInicial', 'dataVigenciaFinal', 'status']].sort_values('valorGlobal', ascending=False)
                 df_portal_info = df_portal_consolidado[df_portal_consolidado['Contrato'].isin(contratos_ambos)]
+                if busca_ambos.strip():
+                    df_ambos = df_ambos[df_ambos['numeroContrato'].str.contains(busca_ambos.strip(), case=False, na=False)]
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Quantidade de contratos compatibilizados", f"{len(df_ambos):,}")
@@ -1680,17 +1683,17 @@ with tab6:
         
         with rec_tab2:
             st.subheader("Contratos presentes apenas no ComprasNet")
-            st.markdown("""**Atenção:** Estes contratos estão cadastrados no ComprasNet mas não foram encontrados em nenhuma base do Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar).""")
-            
+            busca_comprasnet = st.text_input("🔍 Pesquisar por número de contrato", key="busca_comprasnet", placeholder="Ex: 47/2023")
             if len(contratos_so_comprasnet) > 0:
                 df_so_comprasnet = df_comprasnet_copy[df_comprasnet_copy['numeroContrato'].isin(contratos_so_comprasnet)][
                     ['numeroContrato', 'nomeRazaoSocialFornecedor', 'objeto', 'valorGlobal', 
                      'dataVigenciaInicial', 'dataVigenciaFinal', 'status']].sort_values('valorGlobal', ascending=False)
-                
-                st.metric("Total de Contratos", f"{len(df_so_comprasnet):,}")
+                if busca_comprasnet.strip():
+                    df_so_comprasnet = df_so_comprasnet[df_so_comprasnet['numeroContrato'].str.contains(busca_comprasnet.strip(), case=False, na=False)]
+                st.metric("Total de contratos presentes apenas no ComprasNet", f"{len(df_so_comprasnet):,}")
                 df_so_comprasnet = df_so_comprasnet.reset_index(drop=True)
                 st.dataframe(df_so_comprasnet, use_container_width=True)
-                
+                st.markdown("""**Atenção:** Estes contratos estão cadastrados no ComprasNet mas não foram encontrados em nenhuma base do Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar).""")
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                     df_so_comprasnet.to_excel(writer, index=False, sheet_name="Só ComprasNet")
@@ -1702,11 +1705,10 @@ with tab6:
             else:
                 st.success("✅ Todos os contratos do ComprasNet foram encontrados no Portal!")
         
+        
         with rec_tab3:
             st.subheader("Contratos presentes apenas no Portal TRF5")
-            st.markdown("""**Atenção:** Estes contratos estão no Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar) mas não foram encontrados no ComprasNet.""")
-            st.markdown("""No Portal TRF5 há contratos que já foram encerrados e ainda estão presentes.""")
-            
+            busca_portal = st.text_input("🔍 Pesquisar por número de contrato", key="busca_portal", placeholder="Ex: 47/2023")
             if len(contratos_so_portal) > 0:
                 # Preparar dados resumidos para visualização
                 colunas_exibir = ['Contrato', 'Origem portal']
@@ -1714,12 +1716,14 @@ with tab6:
                     if col in df_portal_consolidado.columns:
                         colunas_exibir.append(col)
                 df_so_portal_resumo = df_portal_consolidado[df_portal_consolidado['Contrato'].isin(contratos_so_portal)][colunas_exibir].drop_duplicates(subset=['Contrato'])
+                if busca_portal.strip():
+                    df_so_portal_resumo = df_so_portal_resumo[df_so_portal_resumo['Contrato'].str.contains(busca_portal.strip(), case=False, na=False)]
                 valor_col = 'Valor Empenhos Total' if 'Valor Empenhos Total' in df_so_portal_resumo.columns else (
                     'Valor' if 'Valor' in df_so_portal_resumo.columns else 'Contrato')
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("Total de Contratos", f"{len(df_so_portal_resumo):,}")
+                    st.metric("Total de contratos presentes apenas no portal TRF5", f"{len(df_so_portal_resumo):,}")
                 with col2:
                     if 'Valor Empenhos Total' in df_so_portal_resumo.columns:
                         total_val = pd.to_numeric(df_so_portal_resumo['Valor Empenhos Total'], errors='coerce').sum()
@@ -1729,6 +1733,8 @@ with tab6:
                         st.metric("Valor Total", formatar_real(total_val))
                 df_so_portal_resumo = df_so_portal_resumo.reset_index(drop=True)
                 st.dataframe(df_so_portal_resumo, use_container_width=True)
+                st.markdown("""**Atenção:** Estes contratos estão no Portal TRF5 (Empenhos, Pré-Empenhos ou Restos a Pagar) mas não foram encontrados no ComprasNet.""")
+                st.markdown("""No Portal TRF5 há contratos que já foram encerrados e ainda estão presentes.""")
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                     df_so_portal_resumo.to_excel(writer, index=False, sheet_name="Só ComprasNet")
                 buffer.seek(0)
@@ -1737,7 +1743,7 @@ with tab6:
                     file_name=f"Contratos presentes apenas no Portal TRF5 {timestamp}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             else:
-                st.success("✅ Todos os contratos do Portal foram encontrados no ComprasNet!")
+                st.success("✅ Todos os contratos do Portal foram encontrado no ComprasNet!")
 
 # ==================== ABA 7: ANÁLISE DETALHADA DE CONTRATOS ====================
 with tab7:
@@ -1763,23 +1769,41 @@ with tab7:
     df_resumo_filtrado = df_resumo[df_resumo["contrato_norm"].isin(contratos_em_ambos)]
     df_resumo_comprasnet = df_resumo_filtrado.merge(df_comprasnet2, on="contrato_norm", how="left")
     
-    # Criar base única de contratos (para alertas de vigência)
-    df_contratos = df_resumo_comprasnet.groupby('contrato_norm').agg({
-        'numeroContrato': 'first',
-        'nomeRazaoSocialFornecedor': 'first',
-        'dataVigenciaInicial': 'first',
-        'dataVigenciaFinal': 'first',
-        'valorGlobal': 'first',
-        'status': 'first',
-        'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-        'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()
-    
+    # Criar base única de contratos — 1 linha por contrato_norm
+    # df_comprasnet2 pode ter múltiplas linhas por contrato (aditivos/renovações)
+    # Usamos groupby pegando dataVigenciaFinal MÁXIMA (vigência mais longa = status atual)
+    _cn = df_comprasnet2[df_comprasnet2['contrato_norm'].isin(contratos_em_ambos)].copy()
+    _cn['dataVigenciaFinal'] = pd.to_datetime(_cn['dataVigenciaFinal'], errors='coerce')
+    _cn['dataVigenciaInicial'] = pd.to_datetime(_cn['dataVigenciaInicial'], errors='coerce')
+    _cn['valorGlobal'] = pd.to_numeric(_cn['valorGlobal'], errors='coerce').fillna(0)
+
+    df_contratos = (
+        _cn.sort_values('dataVigenciaFinal', ascending=False)
+        .drop_duplicates(subset=['contrato_norm'])
+        [['contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor',
+          'dataVigenciaInicial', 'dataVigenciaFinal', 'valorGlobal']]
+        .reset_index(drop=True)
+    )
+
+    # Financeiros: df_resumo_filtrado já tem 1 linha por contrato+ano+cc
+    # Pegar o ano mais recente para evitar somar múltiplos anos
+    _fin = (
+        df_resumo[df_resumo['contrato_norm'].isin(contratos_em_ambos)]
+        [['contrato_norm', 'Ano', 'Valor Empenhos Total', 'Valor Empenhos Pagos']]
+        .assign(**{
+            'Valor Empenhos Total': lambda d: pd.to_numeric(d['Valor Empenhos Total'], errors='coerce').fillna(0),
+            'Valor Empenhos Pagos': lambda d: pd.to_numeric(d['Valor Empenhos Pagos'], errors='coerce').fillna(0),
+        })
+        .sort_values('Ano', ascending=False)
+        .drop_duplicates(subset=['contrato_norm'])
+        [['contrato_norm', 'Valor Empenhos Total', 'Valor Empenhos Pagos']]
+    )
+    df_contratos = df_contratos.merge(_fin, on='contrato_norm', how='left')
+    df_contratos['Valor Empenhos Total'] = df_contratos['Valor Empenhos Total'].fillna(0)
+    df_contratos['Valor Empenhos Pagos'] = df_contratos['Valor Empenhos Pagos'].fillna(0)
+
     # Calcular valores
     df_contratos['Valor a Pagar'] = df_contratos['Valor Empenhos Total'] - df_contratos['Valor Empenhos Pagos']
-    
-    # Converter datas
-    df_contratos['dataVigenciaFinal'] = pd.to_datetime(df_contratos['dataVigenciaFinal'], errors='coerce')
-    df_contratos['dataVigenciaInicial'] = pd.to_datetime(df_contratos['dataVigenciaInicial'], errors='coerce')
     
     # Calcular dias até vencimento
     hoje = pd.Timestamp.now()
@@ -1821,6 +1845,8 @@ with tab7:
         if alertas_selecionados:
             df_filtrado = df_contratos[df_contratos['Alerta Vigência'].isin(alertas_selecionados)].copy()
             df_filtrado = df_filtrado.sort_values('Dias até Vencimento', na_position='last')
+
+            # Mapear gestores e centros de custo a partir do df_resumo (1 linha por contrato/CC)
             gestores_por_contrato = df_resumo.groupby('contrato_norm')['Gestor(a)'].apply(
                 lambda x: ', '.join(sorted(set(str(v) for v in x.dropna().unique())))).to_dict()
             cc_por_contrato = df_resumo.groupby('contrato_norm')['Centro de Custo'].apply(
@@ -1841,76 +1867,226 @@ with tab7:
             with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                 df_exibir.to_excel(writer, index=False, sheet_name="Alertas")
             buffer.seek(0)
-            st.download_button("⬇️ Baixar Excel", buffer,
+            st.download_button("⬇️ Baixar dados", buffer,
                                f"Alertas vigência {datetime.now().strftime('%Y%m%d')}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     with tab_gestor:
-        df_gestor_contrato = df_resumo_comprasnet.groupby(['Gestor(a)', 'contrato_norm']).agg({
-            'valorGlobal': 'first',
-            'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()
-        
-        df_gestor_contrato['Valor a Pagar'] = (df_gestor_contrato['Valor Empenhos Total'] - df_gestor_contrato['Valor Empenhos Pagos'])
-        df_gestor_contrato = df_gestor_contrato.merge(df_contratos[['contrato_norm', 'Alerta Vigência']], 
-            on='contrato_norm', how='left')
-        df_por_gestor = df_gestor_contrato.groupby('Gestor(a)').agg({'contrato_norm': 'count',
-            'valorGlobal': 'sum', 'Valor Empenhos Total': 'sum', 'Valor Empenhos Pagos': 'sum', 'Valor a Pagar': 'sum', 
-            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()}).reset_index()
+        # Passo 1: pegar pares únicos contrato+gestor (ignorar ano e outras colunas do df_resumo)
+        df_gestor_contrato = (
+            df_resumo[df_resumo['contrato_norm'].isin(contratos_em_ambos)][['contrato_norm', 'Gestor(a)']]
+            .drop_duplicates(subset=['contrato_norm', 'Gestor(a)'])
+        )
+        # Passo 2: trazer dados financeiros/alerta já corretos de df_contratos (1 linha por contrato)
+        df_gestor_contrato = df_gestor_contrato.merge(
+            df_contratos[['contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor',
+                          'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos',
+                          'Valor a Pagar', 'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência']],
+            on='contrato_norm', how='left'
+        )
+        # Passo 3: agregar por gestor — valores somados são corretos pois cada contrato aparece
+        # no máximo 1x por gestor (um contrato pode ter 2 gestores, aí aparece nas duas linhas)
+        _alertas_ruins = ['Crítico (≤30 dias)', 'Atenção (≤90 dias)']
+        alertas_por_gestor = (
+            df_gestor_contrato[df_gestor_contrato['Alerta Vigência'].isin(_alertas_ruins)]
+            .groupby('Gestor(a)')['contrato_norm'].nunique().rename('Com_Alertas')
+        )
+        df_por_gestor = df_gestor_contrato.groupby('Gestor(a)').agg(
+            Qtd_Contratos=('contrato_norm', 'nunique'),
+            Valor_Global=('valorGlobal', 'sum'),
+            Empenhado=('Valor Empenhos Total', 'sum'),
+            Pago=('Valor Empenhos Pagos', 'sum'),
+            A_Pagar=('Valor a Pagar', 'sum'),
+        ).reset_index()
+        df_por_gestor = df_por_gestor.join(alertas_por_gestor, on='Gestor(a)').fillna({'Com_Alertas': 0})
+        df_por_gestor['Com_Alertas'] = df_por_gestor['Com_Alertas'].astype(int)
         df_por_gestor.columns = ['Gestor', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
-        df_por_gestor = df_por_gestor.sort_values('Valor Global', ascending=False)
-        df_por_gestor = df_por_gestor.reset_index(drop=True)
-        st.dataframe(df_por_gestor, use_container_width=True)
+        df_por_gestor = df_por_gestor.sort_values('Com Alertas', ascending=False).reset_index(drop=True)
+
+        # Filtros
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            gestores_opcoes = sorted(df_por_gestor['Gestor'].dropna().unique().tolist())
+            gestor_sel = st.multiselect("Filtrar por Gestor:", options=gestores_opcoes, key="filtro_gestor_tab7")
+        with col_f2:
+            alerta_gestor_sel = st.multiselect("Filtrar por Alerta:", 
+                options=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)', 'Normal', 'Sem Data'],
+                key="filtro_alerta_gestor_tab7")
+
+        df_por_gestor_exib = df_por_gestor.copy()
+        if gestor_sel:
+            df_por_gestor_exib = df_por_gestor_exib[df_por_gestor_exib['Gestor'].isin(gestor_sel)]
+        if alerta_gestor_sel:
+            # Filtrar gestores que têm contratos com esses alertas
+            gestores_com_alerta = df_gestor_contrato[df_gestor_contrato['Alerta Vigência'].isin(alerta_gestor_sel)]['Gestor(a)'].unique()
+            df_por_gestor_exib = df_por_gestor_exib[df_por_gestor_exib['Gestor'].isin(gestores_com_alerta)]
+
+        # Detalhe: ao selecionar um gestor, mostrar seus contratos
+        if gestor_sel and len(gestor_sel) == 1:
+            st.markdown(f"**Contratos do gestor(a): {gestor_sel[0]}**")
+            contratos_do_gestor = df_gestor_contrato[df_gestor_contrato['Gestor(a)'] == gestor_sel[0]][[
+                'contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor',
+                'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência',
+                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar']].copy()
+            contratos_do_gestor['dataVigenciaFinal'] = pd.to_datetime(
+                contratos_do_gestor['dataVigenciaFinal'], errors='coerce').dt.strftime('%d/%m/%Y')
+            contratos_do_gestor = contratos_do_gestor.drop(columns=['contrato_norm']).reset_index(drop=True)
+            contratos_do_gestor.columns = ['Contrato', 'Fornecedor', 'Vencimento', 'Dias', 'Alerta',
+                                           'Valor Global', 'Empenhado', 'Pago', 'A Pagar']
+            st.dataframe(contratos_do_gestor, use_container_width=True)
+        else:
+            st.metric("Quantidade de gestores", f"{len(df_por_gestor_exib):,}")
+            st.dataframe(df_por_gestor_exib.reset_index(drop=True), use_container_width=True)
+
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            df_por_gestor.to_excel(writer, index=False, sheet_name="Por Gestor")
+            df_por_gestor_exib.to_excel(writer, index=False, sheet_name="Por Gestor")
         buffer.seek(0)
-        st.download_button("⬇️ Baixar Excel", buffer, f"Resumo por gestor{datetime.now().strftime('%Y%m%d')}.xlsx",
+        st.download_button("⬇️ Baixar dados", buffer, f"Resumo por gestor {datetime.now().strftime('%Y%m%d')}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     with tab_nucleo_div:
-        df_nd_contrato = df_resumo_comprasnet.groupby(['Núcleo_Divisão_Seção', 'contrato_norm']).agg({
-            'valorGlobal': 'first',
-            'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()  
-        df_nd_contrato['Valor a Pagar'] = (df_nd_contrato['Valor Empenhos Total'] - df_nd_contrato['Valor Empenhos Pagos'])
-        df_nd_contrato = df_nd_contrato.merge(df_contratos[['contrato_norm', 'Alerta Vigência']], 
-            on='contrato_norm', how='left')
-        df_por_nd = df_nd_contrato.groupby('Núcleo_Divisão_Seção').agg({'contrato_norm': 'count',
-            'valorGlobal': 'sum', 'Valor Empenhos Total': 'sum', 'Valor Empenhos Pagos': 'sum',
-            'Valor a Pagar': 'sum',
-            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()}).reset_index()
-        df_por_nd.columns = ['Núcleo_Divisão_Seção', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
-        df_por_nd = df_por_nd.sort_values('Valor Global', ascending=False)
-        df_por_nd = df_por_nd.reset_index(drop=True)
-        st.dataframe(df_por_nd, use_container_width=True)
+        df_nd_contrato = (
+            df_resumo[df_resumo['contrato_norm'].isin(contratos_em_ambos)][['contrato_norm', 'Núcleo_Divisão_Seção']]
+            .drop_duplicates(subset=['contrato_norm', 'Núcleo_Divisão_Seção'])
+        )
+        df_nd_contrato = df_nd_contrato.merge(
+            df_contratos[['contrato_norm', 'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos',
+                          'Valor a Pagar', 'Alerta Vigência']],
+            on='contrato_norm', how='left'
+        )
+        _alertas_ruins_nd = ['Crítico (≤30 dias)', 'Atenção (≤90 dias)']
+        alertas_por_nd = (
+            df_nd_contrato[df_nd_contrato['Alerta Vigência'].isin(_alertas_ruins_nd)]
+            .groupby('Núcleo_Divisão_Seção')['contrato_norm'].nunique().rename('Com_Alertas')
+        )
+        df_por_nd = df_nd_contrato.groupby('Núcleo_Divisão_Seção').agg(
+            Qtd_Contratos=('contrato_norm', 'nunique'),
+            Valor_Global=('valorGlobal', 'sum'),
+            Empenhado=('Valor Empenhos Total', 'sum'),
+            Pago=('Valor Empenhos Pagos', 'sum'),
+            A_Pagar=('Valor a Pagar', 'sum'),
+        ).reset_index()
+        df_por_nd = df_por_nd.join(alertas_por_nd, on='Núcleo_Divisão_Seção').fillna({'Com_Alertas': 0})
+        df_por_nd['Com_Alertas'] = df_por_nd['Com_Alertas'].astype(int)
+        df_por_nd.columns = ['Núcleo/Divisão/Seção', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
+        df_por_nd = df_por_nd.sort_values('Com Alertas', ascending=False).reset_index(drop=True)
+
+        # Filtros
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            nd_opcoes = sorted(df_por_nd['Núcleo/Divisão/Seção'].dropna().unique().tolist())
+            nd_sel = st.multiselect("Filtrar por Núcleo/Divisão/Seção:", options=nd_opcoes, key="filtro_nd_tab7")
+        with col_f2:
+            alerta_nd_sel = st.multiselect("Filtrar por Alerta:",
+                options=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)', 'Normal', 'Sem Data'],
+                key="filtro_alerta_nd_tab7")
+
+        # Trazer colunas extras para detalhe
+        df_nd_contrato_det = df_nd_contrato.merge(
+            df_contratos[['contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor', 'dataVigenciaFinal', 'Dias até Vencimento']],
+            on='contrato_norm', how='left', suffixes=('', '_dup'))
+
+        df_por_nd_exib = df_por_nd.copy()
+        if nd_sel:
+            df_por_nd_exib = df_por_nd_exib[df_por_nd_exib['Núcleo/Divisão/Seção'].isin(nd_sel)]
+        if alerta_nd_sel:
+            nds_com_alerta = df_nd_contrato[df_nd_contrato['Alerta Vigência'].isin(alerta_nd_sel)]['Núcleo_Divisão_Seção'].unique()
+            df_por_nd_exib = df_por_nd_exib[df_por_nd_exib['Núcleo/Divisão/Seção'].isin(nds_com_alerta)]
+
+        if nd_sel and len(nd_sel) == 1:
+            st.markdown(f"**Contratos do Núcleo/Divisão/Seção: {nd_sel[0]}**")
+            contratos_do_nd = df_nd_contrato_det[df_nd_contrato_det['Núcleo_Divisão_Seção'] == nd_sel[0]][[
+                'contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor',
+                'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência',
+                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar']].copy()
+            contratos_do_nd['dataVigenciaFinal'] = pd.to_datetime(
+                contratos_do_nd['dataVigenciaFinal'], errors='coerce').dt.strftime('%d/%m/%Y')
+            contratos_do_nd = contratos_do_nd.drop(columns=['contrato_norm']).reset_index(drop=True)
+            contratos_do_nd.columns = ['Contrato', 'Fornecedor', 'Vencimento', 'Dias', 'Alerta',
+                                       'Valor Global', 'Empenhado', 'Pago', 'A Pagar']
+            st.dataframe(contratos_do_nd, use_container_width=True)
+        else:
+            st.metric("Quantidade de Núcleos/Divisões/Seções", f"{len(df_por_nd_exib):,}")
+            st.dataframe(df_por_nd_exib.reset_index(drop=True), use_container_width=True)
+
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            df_por_nd.to_excel(writer, index=False, sheet_name="Por Núcleo Divisão Seção")
+            df_por_nd_exib.to_excel(writer, index=False, sheet_name="Por Núcleo Divisão Seção")
         buffer.seek(0)
         st.download_button("⬇️ Baixar Excel", buffer, f"Resumo por Núcleo Divisão Seção {datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")       
-    with tab_cc:
-        df_cc_contrato = df_resumo_comprasnet.groupby(['Centro de Custo', 'contrato_norm']).agg({
-            'valorGlobal': 'first',
-            'Valor Empenhos Total': lambda x: pd.to_numeric(x, errors='coerce').sum(),
-            'Valor Empenhos Pagos': lambda x: pd.to_numeric(x, errors='coerce').sum()}).reset_index()  
-        df_cc_contrato['Valor a Pagar'] = (df_cc_contrato['Valor Empenhos Total'] - df_cc_contrato['Valor Empenhos Pagos'])
-        df_cc_contrato = df_cc_contrato.merge(df_contratos[['contrato_norm', 'Alerta Vigência']], 
-            on='contrato_norm', how='left')
-        df_por_cc = df_cc_contrato.groupby('Centro de Custo').agg({'contrato_norm': 'count',
-            'valorGlobal': 'sum', 'Valor Empenhos Total': 'sum', 'Valor Empenhos Pagos': 'sum',
-            'Valor a Pagar': 'sum',
-            'Alerta Vigência': lambda x: (x.isin(['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)'])).sum()}).reset_index()
-        df_por_cc.columns = ['Centro de Custo', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
-        df_por_cc = df_por_cc.sort_values('Valor Global', ascending=False)
-        df_por_cc = df_por_cc.reset_index(drop=True)
-        st.dataframe(df_por_cc, use_container_width=True)
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            df_por_cc.to_excel(writer, index=False, sheet_name="Por Centro de Custo")
-        buffer.seek(0)
-        st.download_button("⬇️ Baixar Excel", buffer, f"Resumo por centro de custo {datetime.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+    with tab_cc:
+        df_cc_contrato = (
+            df_resumo[df_resumo['contrato_norm'].isin(contratos_em_ambos)][['contrato_norm', 'Centro de Custo']]
+            .drop_duplicates(subset=['contrato_norm', 'Centro de Custo'])
+        )
+        df_cc_contrato = df_cc_contrato.merge(
+            df_contratos[['contrato_norm', 'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos',
+                          'Valor a Pagar', 'Alerta Vigência']],
+            on='contrato_norm', how='left'
+        )
+        _alertas_ruins_cc = ['Crítico (≤30 dias)', 'Atenção (≤90 dias)']
+        alertas_por_cc = (
+            df_cc_contrato[df_cc_contrato['Alerta Vigência'].isin(_alertas_ruins_cc)]
+            .groupby('Centro de Custo')['contrato_norm'].nunique().rename('Com_Alertas')
+        )
+        df_por_cc = df_cc_contrato.groupby('Centro de Custo').agg(
+            Qtd_Contratos=('contrato_norm', 'nunique'),
+            Valor_Global=('valorGlobal', 'sum'),
+            Empenhado=('Valor Empenhos Total', 'sum'),
+            Pago=('Valor Empenhos Pagos', 'sum'),
+            A_Pagar=('Valor a Pagar', 'sum'),
+        ).reset_index()
+        df_por_cc = df_por_cc.join(alertas_por_cc, on='Centro de Custo').fillna({'Com_Alertas': 0})
+        df_por_cc['Com_Alertas'] = df_por_cc['Com_Alertas'].astype(int)
+        df_por_cc.columns = ['Centro de Custo', 'Qtd Contratos', 'Valor Global', 'Empenhado', 'Pago', 'A Pagar', 'Com Alertas']
+        df_por_cc = df_por_cc.sort_values('Com Alertas', ascending=False).reset_index(drop=True)
+
+        # Filtros
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            cc_opcoes = sorted(df_por_cc['Centro de Custo'].dropna().unique().tolist())
+            cc_sel = st.multiselect("Filtrar por Centro de Custo:", options=cc_opcoes, key="filtro_cc_tab7")
+        with col_f2:
+            alerta_cc_sel = st.multiselect("Filtrar por Alerta:",
+                options=['Vencido', 'Crítico (≤30 dias)', 'Atenção (≤90 dias)', 'Normal', 'Sem Data'],
+                key="filtro_alerta_cc_tab7")
+
+        # Trazer colunas extras para detalhe
+        df_cc_contrato_det = df_cc_contrato.merge(
+            df_contratos[['contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor', 'dataVigenciaFinal', 'Dias até Vencimento']],
+            on='contrato_norm', how='left', suffixes=('', '_dup'))
+
+        df_por_cc_exib = df_por_cc.copy()
+        if cc_sel:
+            df_por_cc_exib = df_por_cc_exib[df_por_cc_exib['Centro de Custo'].isin(cc_sel)]
+        if alerta_cc_sel:
+            ccs_com_alerta = df_cc_contrato[df_cc_contrato['Alerta Vigência'].isin(alerta_cc_sel)]['Centro de Custo'].unique()
+            df_por_cc_exib = df_por_cc_exib[df_por_cc_exib['Centro de Custo'].isin(ccs_com_alerta)]
+
+        if cc_sel and len(cc_sel) == 1:
+            st.markdown(f"**Contratos do Centro de Custo: {cc_sel[0]}**")
+            contratos_do_cc = df_cc_contrato_det[df_cc_contrato_det['Centro de Custo'] == cc_sel[0]][[
+                'contrato_norm', 'numeroContrato', 'nomeRazaoSocialFornecedor',
+                'dataVigenciaFinal', 'Dias até Vencimento', 'Alerta Vigência',
+                'valorGlobal', 'Valor Empenhos Total', 'Valor Empenhos Pagos', 'Valor a Pagar']].copy()
+            contratos_do_cc['dataVigenciaFinal'] = pd.to_datetime(
+                contratos_do_cc['dataVigenciaFinal'], errors='coerce').dt.strftime('%d/%m/%Y')
+            contratos_do_cc = contratos_do_cc.drop(columns=['contrato_norm']).reset_index(drop=True)
+            contratos_do_cc.columns = ['Contrato', 'Fornecedor', 'Vencimento', 'Dias', 'Alerta',
+                                       'Valor Global', 'Empenhado', 'Pago', 'A Pagar']
+            st.dataframe(contratos_do_cc, use_container_width=True)
+        else:
+            st.metric("Quantidade de Centros de Custo", f"{len(df_por_cc_exib):,}")
+            st.dataframe(df_por_cc_exib.reset_index(drop=True), use_container_width=True)
+
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df_por_cc_exib.to_excel(writer, index=False, sheet_name="Por Centro de Custo")
+        buffer.seek(0)
+        st.download_button("⬇️ Baixar dados", buffer, f"Resumo por centro de custo {datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 # Rodapé
 st.markdown("---")
 st.markdown(
