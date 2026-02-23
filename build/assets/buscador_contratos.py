@@ -33,7 +33,7 @@ class BuscadorContratos:
         if data_inicio is None:
             data_inicio = "2015-01-01"
         if data_fim is None:
-            data_fim = datetime.now().strftime("%Y-%m-%d")
+            data_fim = datetime.now().replace(year=datetime.now().year + 5).strftime("%Y-%m-%d")
         todos_contratos = []
         pagina = 1
         total_encontrado = 0
