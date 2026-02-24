@@ -179,7 +179,7 @@ def header_banner():
         x+=w+gap
 
     # TÍTULO CENTRALIZADO ENTRE LOGOS
-    texto="Painel Executivo de Contratos, Orçamento e Financeiro"
+    texto="Painel Executivo de Contratos, Orçamento e Finanças"
     bbox = draw.textbbox((0, 0), texto, font=font)
 
     text_w = bbox[2] - bbox[0]
@@ -549,7 +549,7 @@ with tab1:
                                 placeholder="Selecione uma ou mais opções")
     busca_texto = c8.text_input("Busca livre (objeto / informações complementares)")
     c9, c10, c11, c12 = st.columns(4)
-    data_ini = c9.date_input("Data inicial de vigÊncia",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
+    data_ini = c9.date_input("Data inicial de vigência",value=df_comprasnet["dataVigenciaFinal"].min().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].min()) else None)
     data_fim = c10.date_input("Data final de vigência",value=df_comprasnet["dataVigenciaFinal"].max().date() if pd.notnull(df_comprasnet["dataVigenciaFinal"].max()) else None)
     numero_contrato = c11.multiselect("Número do contrato",sorted(df_comprasnet["numeroContrato"].dropna().unique()),
                                 placeholder="Selecione uma ou mais opções")
@@ -582,6 +582,11 @@ with tab1:
         df_comprasnet_f = df_comprasnet_f[df_comprasnet_f["numeroContrato"].isin(numero_contrato)]
 
     df_comprasnet_f.columns = colunas_renomeadas
+    colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+        "Data de Vigência Inicial", "Data de Vigência Final"]
+    outras_colunas = [col for col in df_comprasnet_f.columns if col not in colunas_prioritarias]
+    nova_ordem = colunas_prioritarias + outras_colunas
+    df_comprasnet_f = df_comprasnet_f[nova_ordem]
     st.dataframe(df_comprasnet_f.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     st.caption(f"Quantidade de contratos exibidos: {len(df_comprasnet_f)}")
     buffer = io.BytesIO()
@@ -638,6 +643,11 @@ with tab2:
         vigentes = vigentes[vigentes["nomeRazaoSocialFornecedor"].isin(fornecedor)]
     vigentes1 = vigentes.copy() 
     vigentes1.columns = colunas_renomeadas
+    colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+        "Data de Vigência Inicial", "Data de Vigência Final"]
+    outras_colunas = [col for col in vigentes1.columns if col not in colunas_prioritarias]
+    nova_ordem = colunas_prioritarias + outras_colunas
+    vigentes1 = vigentes1[nova_ordem]
     st.dataframe(vigentes1.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     st.divider()
     with st.container():
@@ -658,6 +668,11 @@ with tab2:
             v30 = v30[v30["nomeRazaoSocialFornecedor"].isin(fornecedor)]
         v301 = v30.copy() 
         v301.columns = colunas_renomeadas
+        colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+            "Data de Vigência Inicial", "Data de Vigência Final"]
+        outras_colunas = [col for col in v301.columns if col not in colunas_prioritarias]
+        nova_ordem = colunas_prioritarias + outras_colunas
+        v301 = v301[nova_ordem]
         st.dataframe(v301.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### ⏳ Vencendo entre 31 e 60 dias")
@@ -677,6 +692,11 @@ with tab2:
             v60 = v60[v60["nomeRazaoSocialFornecedor"].isin(fornecedor)]
         v601 = v60.copy() 
         v601.columns = colunas_renomeadas
+        colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+            "Data de Vigência Inicial", "Data de Vigência Final"]
+        outras_colunas = [col for col in v601.columns if col not in colunas_prioritarias]
+        nova_ordem = colunas_prioritarias + outras_colunas
+        v601 = v601[nova_ordem]
         st.dataframe(v601.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### ⏳ Vencendo entre 61 e 90 dias")
@@ -696,6 +716,11 @@ with tab2:
             v90 = v90[v90["nomeRazaoSocialFornecedor"].isin(fornecedor)]
         v901 = v90.copy() 
         v901.columns = colunas_renomeadas
+        colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+            "Data de Vigência Inicial", "Data de Vigência Final"]
+        outras_colunas = [col for col in v901.columns if col not in colunas_prioritarias]
+        nova_ordem = colunas_prioritarias + outras_colunas
+        v901 = v901[nova_ordem]
         st.dataframe(v901.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     with st.container():
         st.markdown("### 🔴 Contratos vencidos")
@@ -713,7 +738,12 @@ with tab2:
             vencidos = vencidos[vencidos["numeroContrato"].isin(numero_contrato)]
         if fornecedor:
             vencidos = vencidos[vencidos["nomeRazaoSocialFornecedor"].isin(fornecedor)]
-        vencidos.columns = colunas_renomeadas     
+        vencidos.columns = colunas_renomeadas 
+        colunas_prioritarias = ["Número do Contrato", "Razão Social do Fornecedor",
+            "Data de Vigência Inicial", "Data de Vigência Final"]
+        outras_colunas = [col for col in vencidos.columns if col not in colunas_prioritarias]
+        nova_ordem = colunas_prioritarias + outras_colunas
+        vencidos = vencidos[nova_ordem]    
         st.dataframe(vencidos.sort_values("Data de Vigência Final").reset_index(drop=True),use_container_width=True)
     
     # ============ ANÁLISE POR CATEGORIA - CONTRATOS VENCENDO ============
@@ -1111,9 +1141,18 @@ with tab4:
                 legend=dict(orientation="h",yanchor="bottom",y=1.05,xanchor="right",x=1),
                 xaxis=dict(range=[0,valor_empenhado*1.15],tickformat=",.0f",title=""),yaxis=dict(title=""))
                 fig_emp_pago.add_vline(x=valor_empenhado,line_dash="dot",line_color="gray",line_width=2)
-                fig_emp_pago.add_annotation(x=1.05,y=0.5,xref="paper",yref="paper",
-                                            text=f"<b>Total empenhado</b><br>{formatar_real(valor_empenhado)}",
-                                            showarrow=False,align="left",font=dict(size=12,color="#4a4a4a"))
+                fig_emp_pago.add_annotation(
+                    x=valor_empenhado * 1.02,
+                    y="Empenho",
+                    xref="x",
+                    yref="y",
+                    text=f"<b>Total empenhado</b><br>{formatar_real(valor_empenhado)}",
+                    showarrow=False,
+                    align="left",
+                    font=dict(size=12, color="#4a4a4a"),
+                    xanchor="left",
+                    yanchor="middle"
+                )
                 st.plotly_chart(fig_emp_pago,use_container_width=True)
             else:
                 st.info("Sem dados de empenhos para exibir")
